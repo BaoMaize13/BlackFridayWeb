@@ -1,0 +1,45 @@
+const HTTP_STATUS = Object.freeze({
+  OK: 200,
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503
+});
+
+const ERROR_CODES = Object.freeze({
+  BAD_REQUEST: "BAD_REQUEST",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
+  ROUTE_NOT_FOUND: "ROUTE_NOT_FOUND",
+  CONFLICT: "CONFLICT",
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE"
+});
+
+const RESPONSE_MESSAGES = Object.freeze({
+  SUCCESS: {
+    DEFAULT: "Request processed successfully",
+    HEALTH_CHECK_OK: "Service is healthy"
+  },
+  ERROR: {
+    DEFAULT: "Request failed",
+    INTERNAL_SERVER_ERROR: "Internal server error"
+  }
+});
+
+const APP_HEADERS = Object.freeze({
+  REQUEST_ID: "x-request-id"
+});
+
+module.exports = {
+  APP_HEADERS,
+  ERROR_CODES,
+  HTTP_STATUS,
+  RESPONSE_MESSAGES
+};
