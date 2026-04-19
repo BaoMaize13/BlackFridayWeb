@@ -314,6 +314,31 @@ function validateStatsQuery(query = {}) {
   };
 }
 
+function validateMetricsQuery(query = {}) {
+  const errors = [];
+  const productId = isProvided(query.productId) ? parsePositiveInteger(query.productId, "productId", errors) : undefined;
+  const initialStock = isProvided(query.initialStock)
+    ? parseNonNegativeInteger(query.initialStock, "initialStock", errors)
+    : undefined;
+  const quantity = isProvided(query.quantity) ? parsePositiveInteger(query.quantity, "quantity", errors) : undefined;
+  const includeLogs = parseOptionalBoolean(query.includeLogs, "includeLogs", errors);
+  const includeServerBreakdown = parseOptionalBoolean(
+    query.includeServerBreakdown,
+    "includeServerBreakdown",
+    errors
+  );
+
+  assertValid(errors);
+
+  return {
+    includeLogs: includeLogs ?? false,
+    includeServerBreakdown: includeServerBreakdown ?? false,
+    initialStock,
+    productId,
+    quantity
+  };
+}
+
 module.exports = {
   validateCreateProductBody,
   validateDeleteAttemptLogsQuery,
@@ -321,6 +346,7 @@ module.exports = {
   validateListAttemptLogsQuery,
   validateListOrdersQuery,
   validateListProductsQuery,
+  validateMetricsQuery,
   validateOrderIdParam,
   validateProductIdParam,
   validateRequestIdParam,

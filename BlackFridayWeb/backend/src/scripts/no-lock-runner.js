@@ -1,6 +1,19 @@
 const { performance } = require("node:perf_hooks");
 
 const { ORDER_STATUSES, PURCHASE_LOG_ACTIONS } = require("../constants/domain");
+const {
+  aggregateCounts,
+  extractSettledApiData,
+  formatBooleanForOutput,
+  padNumber,
+  parseArguments,
+  parseBoolean,
+  parsePositiveInteger,
+  printSection,
+  requestJson,
+  toRoundedMs,
+  unwrapApiSuccess
+} = require("./script-helpers");
 
 const DEFAULT_CONFIG = Object.freeze({
   baseUrl: "http://127.0.0.1:4000",
@@ -23,72 +36,6 @@ const IMPORTANT_ATTEMPT_ACTIONS = Object.freeze([
   PURCHASE_LOG_ACTIONS.PURCHASE_NO_LOCK_SUCCESS,
   PURCHASE_LOG_ACTIONS.PURCHASE_NO_LOCK_FAILED
 ]);
-
-function parseArguments(argv) {
-  const parsedArgs = {};
-
-  for (const argument of argv) {
-    if (!argument.startsWith("--")) {
-      continue;
-    }
-
-    const normalizedArgument = argument.slice(2);
-    const separatorIndex = normalizedArgument.indexOf("=");
-
-    if (separatorIndex === -1) {
-      parsedArgs[normalizedArgument] = "true";
-      continue;
-    }
-
-    const key = normalizedArgument.slice(0, separatorIndex);
-    const value = normalizedArgument.slice(separatorIndex + 1);
-    parsedArgs[key] = value;
-  }
-
-  return parsedArgs;
-}
-
-function parsePositiveInteger(value, fieldName, options = {}) {
-  const { allowUndefined = false, min = 1 } = options;
-
-  if (value === undefined || value === null || value === "") {
-    if (allowUndefined) {
-      return undefined;
-    }
-
-    throw new Error(`${fieldName} is required and must be an integer greater than or equal to ${min}`);
-  }
-
-  const parsedValue = Number(value);
-
-  if (!Number.isInteger(parsedValue) || parsedValue < min) {
-    throw new Error(`${fieldName} must be an integer greater than or equal to ${min}`);
-  }
-
-  return parsedValue;
-}
-
-function parseBoolean(value, defaultValue) {
-  if (value === undefined || value === null || value === "") {
-    return defaultValue;
-  }
-
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  const normalizedValue = String(value).trim().toLowerCase();
-
-  if (normalizedValue === "true") {
-    return true;
-  }
-
-  if (normalizedValue === "false") {
-    return false;
-  }
-
-  throw new Error("saveReport must be either true or false");
-}
 
 function buildNoLockScriptConfig(argv = process.argv.slice(2), env = process.env, overrides = {}) {
   const argumentsMap = parseArguments(argv);
@@ -115,111 +62,13 @@ function buildNoLockScriptConfig(argv = process.argv.slice(2), env = process.env
       productId: parsePositiveInteger(productId, "productId", { allowUndefined: true }),
       quantity: parsePositiveInteger(argumentsMap.quantity || env.QUANTITY || defaults.quantity, "quantity"),
       requestPrefix: argumentsMap.requestPrefix || env.REQUEST_PREFIX || defaults.requestPrefix,
-      saveReport: parseBoolean(argumentsMap.saveReport || env.SAVE_REPORT, defaults.saveReport),
+      saveReport: parseBoolean(argumentsMap.saveReport || env.SAVE_REPORT, "saveReport", defaults.saveReport),
       timeoutMs: parsePositiveInteger(argumentsMap.timeoutMs || env.REQUEST_TIMEOUT_MS || defaults.timeoutMs, "timeoutMs"),
       userPrefix: argumentsMap.userPrefix || env.USER_PREFIX || defaults.userPrefix
     };
   } catch (error) {
     throw new Error(`Invalid script configuration: ${error.message}`);
   }
-}
-
-function buildUrl(baseUrl, pathname, query = {}) {
-  const url = new URL(pathname, baseUrl);
-
-  Object.entries(query).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      url.searchParams.set(key, String(value));
-    }
-  });
-
-  return url;
-}
-
-async function requestJson(baseUrl, method, pathname, options = {}) {
-  const { body, headers = {}, query, timeoutMs = DEFAULT_CONFIG.timeoutMs } = options;
-  const url = buildUrl(baseUrl, pathname, query);
-  const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      body: body ? JSON.stringify(body) : undefined,
-      headers: {
-        Accept: "application/json",
-        ...(body ? { "Content-Type": "application/json" } : {}),
-        ...headers
-      },
-      method,
-      signal: abortController.signal
-    });
-
-    const rawBody = await response.text();
-    let parsedBody = null;
-
-    if (rawBody.trim()) {
-      try {
-        parsedBody = JSON.parse(rawBody);
-      } catch (error) {
-        parsedBody = null;
-      }
-    }
-
-    return {
-      body: parsedBody,
-      ok: response.ok,
-      rawBody,
-      statusCode: response.status,
-      url: url.toString()
-    };
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error(`Request to ${url.toString()} timed out after ${timeoutMs}ms`);
-    }
-
-    throw new Error(`Request to ${url.toString()} failed: ${error.message}`);
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function describeApiFailure(label, response) {
-  const errorCode = response.body?.error?.code ? ` [${response.body.error.code}]` : "";
-  const message = response.body?.message || response.rawBody || "Unexpected API response";
-  return `${label} failed with status ${response.statusCode}${errorCode}: ${message}`;
-}
-
-function unwrapApiSuccess(label, response) {
-  if (!response.ok) {
-    throw new Error(describeApiFailure(label, response));
-  }
-
-  if (!response.body || typeof response.body !== "object" || response.body.success !== true) {
-    throw new Error(`${label} returned an invalid JSON envelope`);
-  }
-
-  return response.body.data;
-}
-
-function printSection(title) {
-  console.log(`\n${title}`);
-  console.log("-".repeat(title.length));
-}
-
-function formatBooleanForOutput(value) {
-  if (value === null || value === undefined) {
-    return "UNKNOWN";
-  }
-
-  return value ? "YES" : "NO";
-}
-
-function toRoundedMs(value) {
-  return Number(value.toFixed(2));
-}
-
-function padNumber(value) {
-  return String(value).padStart(3, "0");
 }
 
 async function ensureBackendIsReady(config) {
@@ -339,27 +188,6 @@ async function executePurchaseRequest(config, productId, requestIndex) {
   }
 }
 
-function extractSettledApiData(settledResult, label) {
-  if (settledResult.status === "rejected") {
-    return {
-      available: false,
-      errorMessage: settledResult.reason.message
-    };
-  }
-
-  try {
-    return {
-      available: true,
-      data: unwrapApiSuccess(label, settledResult.value)
-    };
-  } catch (error) {
-    return {
-      available: false,
-      errorMessage: error.message
-    };
-  }
-}
-
 async function fetchPostTestData(config, productId) {
   const fetchTasks = await Promise.allSettled([
     requestJson(config.baseUrl, "GET", `/admin/products/${productId}`, { timeoutMs: config.timeoutMs }),
@@ -383,13 +211,6 @@ async function fetchPostTestData(config, productId) {
     orders: extractSettledApiData(fetchTasks[1], `GET /admin/orders?productId=${productId}`),
     stats: extractSettledApiData(fetchTasks[3], `GET /admin/stats?productId=${productId}`)
   };
-}
-
-function aggregateCounts(values) {
-  return values.reduce((accumulator, value) => {
-    accumulator[value] = (accumulator[value] || 0) + 1;
-    return accumulator;
-  }, {});
 }
 
 function buildRequestSummary(requestResults) {

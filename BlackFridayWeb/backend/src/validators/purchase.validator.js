@@ -65,6 +65,11 @@ function validatePurchaseNoLockBody(body = {}) {
   };
 }
 
+function validatePurchaseWithLockBody(body = {}) {
+  return validatePurchaseNoLockBody(body);
+}
+
 module.exports = {
-  validatePurchaseNoLockBody
+  validatePurchaseNoLockBody,
+  validatePurchaseWithLockBody
 };

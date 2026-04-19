@@ -1,13 +1,6 @@
 const { createEvidenceReportFiles } = require("./no-lock-report");
 const { buildNoLockScriptConfig, printEvidenceSummary, printRequestResults, runNoLockScenario } = require("./no-lock-runner");
-
-function formatBoolean(value) {
-  if (value === null || value === undefined) {
-    return "UNKNOWN";
-  }
-
-  return value ? "YES" : "NO";
-}
+const { formatBooleanForOutput } = require("./script-helpers");
 
 async function main() {
   const config = buildNoLockScriptConfig(process.argv.slice(2), process.env, {
@@ -30,11 +23,11 @@ async function main() {
   console.log(`JSON Report: ${reportPaths.jsonReportPath}`);
   console.log(`Markdown Report: ${reportPaths.markdownReportPath}`);
   console.log("\nResult:");
-  console.log(`- Oversell Detected: ${formatBoolean(evidence.consistencyCheck.oversellDetected)}`);
-  console.log(`- Negative Stock Detected: ${formatBoolean(evidence.consistencyCheck.negativeStockDetected)}`);
-  console.log(`- Stock Mismatch: ${formatBoolean(evidence.consistencyCheck.stockMismatch)}`);
-  console.log(`- Same Stock Read Detected: ${formatBoolean(evidence.consistencyCheck.sameStockReadDetected)}`);
-  console.log(`- Data Consistent: ${formatBoolean(evidence.consistencyCheck.dataConsistent)}`);
+  console.log(`- Oversell Detected: ${formatBooleanForOutput(evidence.consistencyCheck.oversellDetected)}`);
+  console.log(`- Negative Stock Detected: ${formatBooleanForOutput(evidence.consistencyCheck.negativeStockDetected)}`);
+  console.log(`- Stock Mismatch: ${formatBooleanForOutput(evidence.consistencyCheck.stockMismatch)}`);
+  console.log(`- Same Stock Read Detected: ${formatBooleanForOutput(evidence.consistencyCheck.sameStockReadDetected)}`);
+  console.log(`- Data Consistent: ${formatBooleanForOutput(evidence.consistencyCheck.dataConsistent)}`);
 }
 
 if (require.main === module) {

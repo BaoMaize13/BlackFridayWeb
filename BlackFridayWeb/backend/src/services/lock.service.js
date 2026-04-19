@@ -5,6 +5,7 @@ const { ERROR_CODES, HTTP_STATUS } = require("../constants/system");
 const AppError = require("../utils/app-error");
 const { generateLockToken } = require("../utils/lock-token.util");
 const { logger } = require("../utils/logger");
+const { sleep } = require("../utils/sleep.util");
 
 const RELEASE_LOCK_SCRIPT = `
 if redis.call("GET", KEYS[1]) == ARGV[1] then
@@ -13,12 +14,6 @@ else
   return 0
 end
 `;
-
-function sleep(durationMs) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, durationMs);
-  });
-}
 
 function maskToken(token) {
   if (!token) {
@@ -151,7 +146,7 @@ class LockService {
 
     activeLogger.info(
       buildLogContext(lockKey, resolvedOptions, {
-        action: LOCK_EVENTS.ACQUIRE_STARTED
+        action: LOCK_EVENTS.LOCK_ACQUIRE_STARTED
       }),
       "Lock acquisition started"
     );
@@ -184,8 +179,9 @@ class LockService {
 
         activeLogger.info(
           buildLogContext(lockKey, resolvedOptions, {
-            action: LOCK_EVENTS.ACQUIRED,
-            attemptCount,
+            acquired: true,
+            action: LOCK_EVENTS.LOCK_ACQUIRED,
+            attempts: attemptCount,
             elapsedMs,
             token: maskToken(token)
           }),
@@ -194,7 +190,7 @@ class LockService {
 
         return {
           acquired: true,
-          attemptCount,
+          attempts: attemptCount,
           elapsedMs,
           lockKey,
           token,
@@ -207,15 +203,16 @@ class LockService {
       if (elapsedMs >= resolvedOptions.waitTimeoutMs) {
         activeLogger.warn(
           buildLogContext(lockKey, resolvedOptions, {
-            action: LOCK_EVENTS.ACQUIRE_TIMEOUT,
-            attemptCount,
+            acquired: false,
+            action: LOCK_EVENTS.LOCK_ACQUIRE_TIMEOUT,
+            attempts: attemptCount,
             elapsedMs
           }),
           "Lock acquisition timed out"
         );
 
         throw createLockTimeoutError(lockKey, {
-          attemptCount,
+          attempts: attemptCount,
           elapsedMs,
           lockKey,
           requestId: resolvedOptions.requestId,
@@ -225,8 +222,9 @@ class LockService {
 
       activeLogger.info(
         buildLogContext(lockKey, resolvedOptions, {
-          action: LOCK_EVENTS.ACQUIRE_RETRY,
-          attemptCount,
+          acquired: false,
+          action: LOCK_EVENTS.LOCK_ACQUIRE_RETRY,
+          attempts: attemptCount,
           elapsedMs
         }),
         "Lock acquisition retry scheduled"
@@ -243,7 +241,7 @@ class LockService {
 
     activeLogger.info(
       buildLogContext(lockKey, resolvedOptions, {
-        action: LOCK_EVENTS.RELEASE_STARTED,
+        action: LOCK_EVENTS.LOCK_RELEASE_STARTED,
         token: maskToken(token)
       }),
       "Lock release started"
@@ -260,7 +258,7 @@ class LockService {
       if (releasedCount === 1) {
         activeLogger.info(
           buildLogContext(lockKey, resolvedOptions, {
-            action: LOCK_EVENTS.RELEASED,
+            action: LOCK_EVENTS.LOCK_RELEASED,
             released: true,
             token: maskToken(token)
           }),
@@ -276,7 +274,7 @@ class LockService {
 
       activeLogger.warn(
         buildLogContext(lockKey, resolvedOptions, {
-          action: LOCK_EVENTS.RELEASE_SKIPPED,
+          action: LOCK_EVENTS.LOCK_RELEASE_SKIPPED,
           reason: LOCK_RELEASE_REASONS.TOKEN_MISMATCH_OR_EXPIRED,
           released: false,
           token: maskToken(token)
@@ -292,7 +290,7 @@ class LockService {
     } catch (error) {
       activeLogger.error(
         buildLogContext(lockKey, resolvedOptions, {
-          action: LOCK_EVENTS.RELEASE_FAILED,
+          action: LOCK_EVENTS.LOCK_RELEASE_FAILED,
           err: error,
           reason: LOCK_RELEASE_REASONS.REDIS_ERROR,
           token: maskToken(token)
@@ -315,39 +313,33 @@ class LockService {
       ...options,
       ...resolvedOptions
     });
-    let result;
     let handlerError = null;
 
     try {
-      result = await handler(lock);
+      return await handler(lock);
     } catch (error) {
       handlerError = error;
-    }
+      throw error;
+    } finally {
+      try {
+        await this.releaseLock(lock.lockKey, lock.token, {
+          ...options,
+          ...resolvedOptions
+        });
+      } catch (releaseError) {
+        activeLogger.warn(
+          buildLogContext(lockKey, resolvedOptions, {
+            action: LOCK_EVENTS.LOCK_RELEASE_FAILED,
+            releaseErrorCode: releaseError.errorCode || ERROR_CODES.LOCK_RELEASE_FAILED
+          }),
+          "Lock release encountered an error inside withLock"
+        );
 
-    try {
-      await this.releaseLock(lock.lockKey, lock.token, {
-        ...options,
-        ...resolvedOptions
-      });
-    } catch (releaseError) {
-      activeLogger.warn(
-        buildLogContext(lockKey, resolvedOptions, {
-          action: LOCK_EVENTS.RELEASE_FAILED,
-          releaseErrorCode: releaseError.errorCode || ERROR_CODES.LOCK_RELEASE_FAILED
-        }),
-        "Lock release encountered an error inside withLock"
-      );
-
-      if (!handlerError) {
-        throw releaseError;
+        if (!handlerError) {
+          throw releaseError;
+        }
       }
     }
-
-    if (handlerError) {
-      throw handlerError;
-    }
-
-    return result;
   }
 }
 

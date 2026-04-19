@@ -1,34 +1,5 @@
-const fs = require("node:fs");
-const path = require("node:path");
-
-function sanitizeTimestamp(value) {
-  return value.replace(/[:.]/g, "-");
-}
-
-function formatBoolean(value) {
-  if (value === null || value === undefined) {
-    return "UNKNOWN";
-  }
-
-  return value ? "YES" : "NO";
-}
-
-function escapeMarkdownCell(value) {
-  return String(value ?? "").replace(/\|/g, "\\|").replace(/\n/g, "<br>");
-}
-
-function buildMarkdownTable(rows) {
-  if (!rows || rows.length === 0) {
-    return "_No data available._";
-  }
-
-  const headers = Object.keys(rows[0]);
-  const headerRow = `| ${headers.map(escapeMarkdownCell).join(" | ")} |`;
-  const separatorRow = `| ${headers.map(() => "---").join(" | ")} |`;
-  const bodyRows = rows.map((row) => `| ${headers.map((header) => escapeMarkdownCell(row[header])).join(" | ")} |`);
-
-  return [headerRow, separatorRow, ...bodyRows].join("\n");
-}
+const { buildMarkdownTable, formatBoolean } = require("../reporting/markdown-report.builder");
+const { writeJsonReport, writeMarkdownReport } = require("../reporting/report-writer");
 
 function buildProductSnapshotRows(evidence) {
   return [
@@ -222,15 +193,17 @@ ${
 }
 
 function createEvidenceReportFiles(evidence, options = {}) {
-  const reportsDirectory = path.resolve(process.cwd(), "reports");
-  const timestamp = sanitizeTimestamp(evidence.timestamp);
   const filePrefix = options.filePrefix || "no-lock-evidence";
-  const jsonReportPath = path.join(reportsDirectory, `${filePrefix}-${timestamp}.json`);
-  const markdownReportPath = path.join(reportsDirectory, `${filePrefix}-${timestamp}.md`);
-
-  fs.mkdirSync(reportsDirectory, { recursive: true });
-  fs.writeFileSync(jsonReportPath, JSON.stringify(evidence, null, 2));
-  fs.writeFileSync(markdownReportPath, buildMarkdownEvidenceReport(evidence));
+  const jsonReportPath = writeJsonReport(evidence, {
+    filePrefix,
+    reportDir: options.reportDir || "reports",
+    timestamp: evidence.timestamp
+  });
+  const markdownReportPath = writeMarkdownReport(buildMarkdownEvidenceReport(evidence), {
+    filePrefix,
+    reportDir: options.reportDir || "reports",
+    timestamp: evidence.timestamp
+  });
 
   return {
     jsonReportPath,

@@ -19,6 +19,7 @@ function getIncomingRequestId(requestIdHeader) {
 
 function requestContextMiddleware(req, res, next) {
   const requestId = getIncomingRequestId(req.headers[APP_HEADERS.REQUEST_ID]) || randomUUID();
+  const requestPath = req.originalUrl || req.url;
   const requestLogger = createLogger({
     requestId,
     serverId: serverConfig.id
@@ -27,6 +28,8 @@ function requestContextMiddleware(req, res, next) {
   req.id = requestId;
   req.context = {
     logger: requestLogger,
+    method: req.method,
+    path: requestPath,
     requestId,
     serverId: serverConfig.id,
     startedAt: performance.now()

@@ -1,5 +1,4 @@
 const path = require("node:path");
-const os = require("node:os");
 
 const dotenv = require("dotenv");
 const { bool, cleanEnv, num, port, str, url } = require("envalid");
@@ -20,7 +19,7 @@ function loadEnvironment() {
       NODE_ENV: str({ choices: allowedNodeEnvs, default: "development" }),
       HOST: str({ default: "0.0.0.0" }),
       PORT: port({ default: 4000 }),
-      SERVER_ID: str({ default: os.hostname() }),
+      SERVER_ID: str({ default: `server-${process.env.PORT || 4000}` }),
       DB_CLIENT: str({ choices: allowedDatabaseClients, default: "sqlite3" }),
       DB_URL: str({ default: "./data/blackfridayweb.sqlite" }),
       DB_POOL_MIN: num({ default: 1 }),

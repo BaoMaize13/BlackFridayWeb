@@ -7,6 +7,7 @@ function getRequestId(req) {
 function buildMeta(req, meta = {}) {
   return {
     requestId: getRequestId(req),
+    serverId: req.context?.serverId || null,
     timestamp: new Date().toISOString(),
     ...meta
   };

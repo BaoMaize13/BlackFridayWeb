@@ -8,13 +8,31 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node tests/run-tests.js",
+    "dev:server-a": "cross-env PORT=3000 SERVER_ID=server-A npm run dev",
+    "dev:server-b": "cross-env PORT=3001 SERVER_ID=server-B npm run dev",
+    "test": "npm run test:all",
+    "test:unit": "node tests/setup/run-node-tests.js unit",
+    "test:integration": "node tests/setup/run-node-tests.js integration",
+    "test:edge": "node tests/setup/run-node-tests.js edge",
+    "test:concurrency": "node tests/setup/run-node-tests.js concurrency",
+    "test:all": "node tests/setup/run-node-tests.js all",
+    "test:multi-instance": "node src/scripts/load-test-multi-instance.js",
+    "test:multi-instance:with-lock": "cross-env MODE=with-lock node src/scripts/load-test-multi-instance.js",
+    "test:multi-instance:no-lock": "cross-env MODE=no-lock node src/scripts/load-test-multi-instance.js",
+    "report:compare": "node src/scripts/compare-lock-strategies.js",
+    "report:metrics": "node src/scripts/generate-metrics-summary.js",
+    "redis:up": "docker compose up -d redis",
+    "redis:down": "docker compose down",
+    "redis:logs": "docker compose logs -f redis",
     "db:migrate": "node src/scripts/migrate.js",
     "db:seed": "node src/scripts/seed.js",
     "db:reset": "node src/scripts/reset-data.js",
     "db:list-products": "node src/scripts/list-products.js",
     "test:no-lock": "node src/scripts/load-test-no-lock.js",
     "evidence:no-lock": "node src/scripts/no-lock-evidence.js",
+    "test:with-lock": "node src/scripts/load-test-with-lock.js",
+    "evidence:with-lock": "node src/scripts/with-lock-evidence.js",
+    "evidence:multi-instance": "node src/scripts/load-test-multi-instance.js",
     "test:lock": "node src/scripts/test-lock-service.js"
   },
   "engines": {
@@ -32,6 +50,7 @@
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "nodemon": "^3.1.10",
     "pino-pretty": "^13.1.2",
     "supertest": "^7.1.4"
