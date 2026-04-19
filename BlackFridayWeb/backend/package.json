@@ -12,7 +12,10 @@
     "db:migrate": "node src/scripts/migrate.js",
     "db:seed": "node src/scripts/seed.js",
     "db:reset": "node src/scripts/reset-data.js",
-    "db:list-products": "node src/scripts/list-products.js"
+    "db:list-products": "node src/scripts/list-products.js",
+    "test:no-lock": "node src/scripts/load-test-no-lock.js",
+    "evidence:no-lock": "node src/scripts/no-lock-evidence.js",
+    "test:lock": "node src/scripts/test-lock-service.js"
   },
   "engines": {
     "node": ">=18.18.0"
@@ -25,6 +28,7 @@
     "knex": "^3.1.0",
     "pg": "^8.16.3",
     "pino": "^10.1.0",
+    "redis": "^5.12.1",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

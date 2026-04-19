@@ -1,5 +1,5 @@
 const { closeDatabase, initializeDatabase, runMigrations } = require("../database/client");
-const ProductRepository = require("../repositories/product.repository");
+const { ProductRepository } = require("../repositories");
 const { logger } = require("../utils/logger");
 
 async function listProducts() {
@@ -8,7 +8,7 @@ async function listProducts() {
 
   try {
     const productRepository = new ProductRepository();
-    const products = await productRepository.list();
+    const products = await productRepository.listProducts();
 
     logger.info(
       {

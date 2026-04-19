@@ -53,7 +53,7 @@ async function testInternalServerErrorResponse() {
 
   assert.equal(response.body.success, false);
   assert.equal(response.body.message, "Internal server error");
-  assert.equal(response.body.error.code, "INTERNAL_SERVER_ERROR");
+  assert.equal(response.body.error.code, "INTERNAL_ERROR");
   assert.equal(typeof response.body.meta.requestId, "string");
 }
 

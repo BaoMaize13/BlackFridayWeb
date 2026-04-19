@@ -1,8 +1,6 @@
 const seedProducts = require("../database/seeds/product-seed-data");
 const { closeDatabase, initializeDatabase, runMigrations, withTransaction } = require("../database/client");
-const OrderRepository = require("../repositories/order.repository");
-const ProductRepository = require("../repositories/product.repository");
-const PurchaseLogRepository = require("../repositories/purchase-log.repository");
+const { OrderRepository, ProductRepository, PurchaseAttemptRepository } = require("../repositories");
 const { logger } = require("../utils/logger");
 
 async function resetTestData(options = {}) {
@@ -17,39 +15,18 @@ async function resetTestData(options = {}) {
     const restoredProducts = await withTransaction(async (transaction) => {
       const orderRepository = new OrderRepository();
       const productRepository = new ProductRepository();
-      const purchaseLogRepository = new PurchaseLogRepository();
+      const purchaseAttemptRepository = new PurchaseAttemptRepository();
 
-      await purchaseLogRepository.deleteAll({ executor: transaction });
-      await orderRepository.deleteAll({ executor: transaction });
+      await purchaseAttemptRepository.deleteAllAttemptLogsForTest({ executor: transaction });
+      await orderRepository.deleteAllOrdersForTest({ executor: transaction });
 
       const restoredProducts = [];
 
       for (const seedProduct of seedProducts) {
-        const existingProduct = await productRepository.findByCode(seedProduct.code, {
-          executor: transaction
-        });
-
-        if (!existingProduct) {
-          restoredProducts.push(
-            await productRepository.upsertByCode(seedProduct, {
-              executor: transaction
-            })
-          );
-          continue;
-        }
-
         restoredProducts.push(
-          await productRepository.resetStock(
-            {
-              productId: existingProduct.id,
-              stock: seedProduct.stock,
-              price: seedProduct.price,
-              name: seedProduct.name
-            },
-            {
-              executor: transaction
-            }
-          )
+          await productRepository.upsertProductByCode(seedProduct, {
+            executor: transaction
+          })
         );
       }
 

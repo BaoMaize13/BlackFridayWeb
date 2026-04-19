@@ -2,7 +2,7 @@ const http = require("node:http");
 
 const { appConfig, serverConfig } = require("./config");
 const { closeDatabase, getDatabaseState, initializeDatabase } = require("./database/client");
-const { getRedisState } = require("./config/redis");
+const { disconnectRedis, getRedisState } = require("./config/redis");
 const { createApp } = require("./app");
 const { logger } = require("./utils/logger");
 
@@ -21,10 +21,11 @@ function registerShutdownHandlers(server) {
 
         try {
           await closeDatabase();
+          await disconnectRedis();
           logger.info("HTTP server closed");
           process.exit(0);
         } catch (closeError) {
-          logger.error({ err: closeError }, "Database shutdown failed");
+          logger.error({ err: closeError }, "Service shutdown failed");
           process.exit(1);
         }
       });

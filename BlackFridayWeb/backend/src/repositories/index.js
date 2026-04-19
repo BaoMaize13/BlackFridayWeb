@@ -1,0 +1,9 @@
+const OrderRepository = require("./order.repository");
+const ProductRepository = require("./product.repository");
+const PurchaseAttemptRepository = require("./purchase-log.repository");
+
+module.exports = {
+  OrderRepository,
+  ProductRepository,
+  PurchaseAttemptRepository
+};

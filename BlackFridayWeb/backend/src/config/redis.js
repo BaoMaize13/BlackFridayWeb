@@ -1,24 +1,10 @@
 const { redisConfig } = require("./index");
-
-function getRedisState() {
-  return {
-    configured: Boolean(redisConfig.url),
-    connected: false,
-    driver: redisConfig.driver
-  };
-}
-
-async function connectRedis() {
-  return null;
-}
-
-async function disconnectRedis() {
-  return null;
-}
+const { connectRedis, disconnectRedis, getRedisClient, getRedisState } = require("../database/redis.client");
 
 module.exports = {
   connectRedis,
   disconnectRedis,
+  getRedisClient,
   getRedisState,
   redisConfig
 };

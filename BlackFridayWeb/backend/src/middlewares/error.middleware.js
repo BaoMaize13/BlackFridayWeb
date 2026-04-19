@@ -15,7 +15,7 @@ function errorMiddleware(error, req, res, next) {
       : new AppError({
           message: RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER_ERROR,
           statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-          errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+          errorCode: ERROR_CODES.INTERNAL_ERROR,
           exposeMessage: false,
           isOperational: false
         });

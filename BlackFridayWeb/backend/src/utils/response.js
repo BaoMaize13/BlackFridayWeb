@@ -62,7 +62,7 @@ function sendError(res, req, options = {}) {
   const {
     statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
     message = RESPONSE_MESSAGES.ERROR.INTERNAL_SERVER_ERROR,
-    errorCode = ERROR_CODES.INTERNAL_SERVER_ERROR,
+    errorCode = ERROR_CODES.INTERNAL_ERROR,
     details,
     meta,
     debug

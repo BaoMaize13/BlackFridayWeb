@@ -4,7 +4,7 @@ class AppError extends Error {
   constructor({
     message,
     statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
-    errorCode = ERROR_CODES.INTERNAL_SERVER_ERROR,
+    errorCode = ERROR_CODES.INTERNAL_ERROR,
     details,
     exposeMessage = statusCode < HTTP_STATUS.INTERNAL_SERVER_ERROR,
     isOperational = statusCode < HTTP_STATUS.INTERNAL_SERVER_ERROR

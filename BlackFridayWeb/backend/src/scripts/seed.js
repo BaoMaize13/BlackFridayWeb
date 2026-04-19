@@ -1,6 +1,6 @@
-const ProductRepository = require("../repositories/product.repository");
 const seedProducts = require("../database/seeds/product-seed-data");
 const { closeDatabase, initializeDatabase, runMigrations, withTransaction } = require("../database/client");
+const { ProductRepository } = require("../repositories");
 const { logger } = require("../utils/logger");
 
 async function seedBaselineData(options = {}) {
@@ -17,7 +17,7 @@ async function seedBaselineData(options = {}) {
       const records = [];
 
       for (const seedProduct of seedProducts) {
-        const product = await productRepository.upsertByCode(seedProduct, {
+        const product = await productRepository.upsertProductByCode(seedProduct, {
           executor: transaction
         });
 

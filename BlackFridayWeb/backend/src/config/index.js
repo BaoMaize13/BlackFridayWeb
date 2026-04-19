@@ -68,10 +68,23 @@ const redisConfig = Object.freeze({
   driver: detectRedisDriver(env.REDIS_URL)
 });
 
+const lockConfig = Object.freeze({
+  keyPrefix: env.LOCK_KEY_PREFIX,
+  retryIntervalMs: env.LOCK_RETRY_INTERVAL_MS,
+  ttlMs: env.LOCK_TTL_MS,
+  waitTimeoutMs: env.LOCK_WAIT_TIMEOUT_MS
+});
+
+const purchaseConfig = Object.freeze({
+  noLockDelayMs: env.NO_LOCK_PURCHASE_DELAY_MS
+});
+
 module.exports = Object.freeze({
   appConfig,
   databaseConfig,
+  lockConfig,
   logConfig,
+  purchaseConfig,
   redisConfig,
   serverConfig
 });
