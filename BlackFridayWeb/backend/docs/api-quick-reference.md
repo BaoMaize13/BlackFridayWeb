@@ -1,10 +1,11 @@
 # API Quick Reference
 
-Day khong phai OpenAPI day du. Muc tieu la de demo nhanh.
+Day khong phai OpenAPI day du. Muc tieu la de frontend va demo flow dung dung contract `/api`.
 
 ## Health
 
 ### GET /health
+### GET /api/health
 
 Muc dich:
 
@@ -15,27 +16,79 @@ Vi du:
 
 ```powershell
 curl.exe "http://localhost:4000/health"
+curl.exe "http://localhost:4000/api/health"
 ```
 
-Response chinh:
+## Auth
 
-- `success`
-- `data.appName`
-- `data.environment`
-- `data.server`
-- `data.services`
+### POST /api/auth/login
 
-Loi thuong gap:
+Body mau:
 
-- backend chua chay
+```json
+{
+  "email": "admin@example.com",
+  "password": "password"
+}
+```
 
-## Admin Product
+Response thanh cong:
 
-### POST /admin/products
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "token": "jwt-token",
+    "user": {
+      "id": 1,
+      "email": "admin@example.com",
+      "username": "admin",
+      "name": "Admin",
+      "role": "admin",
+      "status": "active"
+    }
+  }
+}
+```
 
-Muc dich:
+### POST /api/auth/register
 
-- tao product demo moi
+Body mau:
+
+```json
+{
+  "email": "demo@example.com",
+  "password": "password",
+  "name": "Demo User",
+  "username": "demo"
+}
+```
+
+### GET /api/auth/me
+
+Can header:
+
+```text
+Authorization: Bearer <token>
+```
+
+### POST /api/auth/logout
+
+Hien tai logout theo huong stateless JWT:
+
+- backend tra response thanh cong
+- frontend tu xoa local session
+
+## Admin APIs
+
+Tat ca routes duoi day deu can:
+
+```text
+Authorization: Bearer <admin-jwt>
+```
+
+### POST /api/admin/products
 
 Body mau:
 
@@ -48,51 +101,16 @@ Body mau:
 }
 ```
 
-Vi du:
-
-```powershell
-curl.exe -X POST "http://localhost:4000/admin/products" -H "Content-Type: application/json" -d "{\"code\":\"DEMO-001\",\"name\":\"Demo Product\",\"price\":199000,\"stock\":10}"
-```
-
-Loi thuong gap:
-
-- `VALIDATION_ERROR`
-- duplicate `code`
-
-### GET /admin/products
+### GET /api/admin/products
 
 Muc dich:
 
 - lay danh sach product
 - tim `productId` de demo
 
-Vi du:
+### GET /api/admin/products/:productId
 
-```powershell
-curl.exe "http://localhost:4000/admin/products"
-```
-
-### GET /admin/products/:productId
-
-Muc dich:
-
-- xem chi tiet mot product
-
-Vi du:
-
-```powershell
-curl.exe "http://localhost:4000/admin/products/1"
-```
-
-Loi thuong gap:
-
-- `PRODUCT_NOT_FOUND`
-
-### PATCH /admin/products/:productId/stock
-
-Muc dich:
-
-- cap nhat stock nhanh
+### PATCH /api/admin/products/:productId/stock
 
 Body mau:
 
@@ -102,13 +120,7 @@ Body mau:
 }
 ```
 
-### POST /admin/products/:productId/reset
-
-Muc dich:
-
-- reset stock
-- clear orders
-- clear logs
+### POST /api/admin/products/:productId/reset
 
 Body mau:
 
@@ -120,103 +132,52 @@ Body mau:
 }
 ```
 
-Vi du:
-
-```powershell
-curl.exe -X POST "http://localhost:4000/admin/products/1/reset" -H "Content-Type: application/json" -d "{\"stock\":1,\"clearOrders\":true,\"clearLogs\":true}"
-```
-
-## Admin Orders
-
-### GET /admin/orders
-
-Muc dich:
-
-- xem order sau khi chay test
-
-Vi du:
-
-```powershell
-curl.exe "http://localhost:4000/admin/orders?productId=1"
-```
-
-Response chinh:
-
-- danh sach orders
-- `status`
-- `requestId`
-- `failureReason` neu co
-
-Loi thuong gap:
-
-- query sai `productId`
-
-## Admin Logs
-
-### GET /admin/attempt-logs
-
-Muc dich:
-
-- xem audit logs / purchase attempt logs
-
-Vi du:
-
-```powershell
-curl.exe "http://localhost:4000/admin/attempt-logs?productId=1"
-```
-
-Response chinh:
-
-- `action`
-- `requestId`
-- `result`
-- `serverId`
-- `stockBefore`
-- `stockAfter`
-
-Loi thuong gap:
-
-- query sai `productId`
-
-## Metrics
-
-### GET /admin/metrics
-
-Muc dich:
-
-- xem tong hop orders, errors, consistency check, server breakdown
-
-Vi du:
-
-```powershell
-curl.exe "http://localhost:4000/admin/metrics?productId=1&initialStock=1&quantity=1&includeServerBreakdown=true"
-```
+### GET /api/admin/orders
 
 Query hay dung:
 
 - `productId`
-- `initialStock`
-- `quantity`
-- `includeLogs`
-- `includeServerBreakdown`
+- `requestId`
+- `status`
 
-Response chinh:
+### GET /api/admin/orders/:orderId
 
-- `stock`
-- `orders`
-- `errors`
-- `stockMetrics`
-- `consistencyCheck`
-- `serverBreakdown`
+### DELETE /api/admin/orders
+
+### GET /api/admin/attempt-logs
+
+Query hay dung:
+
+- `productId`
+- `requestId`
+- `action`
+- `result`
+
+### GET /api/admin/attempt-logs/:requestId
+
+### DELETE /api/admin/attempt-logs
+
+### GET /api/admin/stats
+
+### GET /api/admin/metrics
+
+Vi du:
+
+```powershell
+curl.exe "http://localhost:4000/api/admin/metrics?productId=1&initialStock=1&quantity=1&includeServerBreakdown=true" -H "Authorization: Bearer <token>"
+```
 
 Loi thuong gap:
 
+- `UNAUTHORIZED`
+- `INVALID_TOKEN`
+- `FORBIDDEN`
 - `PRODUCT_NOT_FOUND`
 - `VALIDATION_ERROR`
 
-## Purchase
+## Purchase APIs
 
-### POST /purchase/no-lock
+### POST /api/purchase/no-lock
 
 Muc dich:
 
@@ -233,20 +194,7 @@ Body mau:
 }
 ```
 
-Vi du:
-
-```powershell
-curl.exe -X POST "http://localhost:4000/purchase/no-lock" -H "Content-Type: application/json" -d "{\"productId\":1,\"quantity\":1,\"requestId\":\"demo-no-lock-001\",\"userId\":\"student-001\"}"
-```
-
-Loi thuong gap:
-
-- `VALIDATION_ERROR`
-- `PRODUCT_NOT_FOUND`
-- `OUT_OF_STOCK`
-- `DUPLICATE_REQUEST`
-
-### POST /purchase/with-lock
+### POST /api/purchase/with-lock
 
 Muc dich:
 
@@ -261,12 +209,6 @@ Body mau:
   "requestId": "demo-with-lock-001",
   "userId": "student-001"
 }
-```
-
-Vi du:
-
-```powershell
-curl.exe -X POST "http://localhost:4000/purchase/with-lock" -H "Content-Type: application/json" -d "{\"productId\":1,\"quantity\":1,\"requestId\":\"demo-with-lock-001\",\"userId\":\"student-001\"}"
 ```
 
 Loi thuong gap:

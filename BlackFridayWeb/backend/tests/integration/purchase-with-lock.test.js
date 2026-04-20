@@ -24,7 +24,7 @@ after(async () => {
   await closeTestRedis();
 });
 
-test("POST /purchase/with-lock succeeds for a single in-stock request", async (t) => {
+test("POST /api/purchase/with-lock succeeds for a single in-stock request", async (t) => {
   if (!(await ensureRedisAvailable(t))) {
     return;
   }
@@ -36,7 +36,7 @@ test("POST /purchase/with-lock succeeds for a single in-stock request", async (t
   const product = await productRepository.findProductByCode("BF-LOW-STOCK-001");
 
   const response = await client
-    .post("/purchase/with-lock")
+    .post("/api/purchase/with-lock")
     .set("x-request-id", "purchase-with-lock-success-001")
     .send(
       createPurchasePayload({
@@ -64,7 +64,7 @@ test("POST /purchase/with-lock succeeds for a single in-stock request", async (t
   );
 });
 
-test("POST /purchase/with-lock returns OUT_OF_STOCK and keeps stock unchanged", async (t) => {
+test("POST /api/purchase/with-lock returns OUT_OF_STOCK and keeps stock unchanged", async (t) => {
   if (!(await ensureRedisAvailable(t))) {
     return;
   }
@@ -80,7 +80,7 @@ test("POST /purchase/with-lock returns OUT_OF_STOCK and keeps stock unchanged", 
   });
 
   const response = await client
-    .post("/purchase/with-lock")
+    .post("/api/purchase/with-lock")
     .send(
       createPurchasePayload({
         productId: product.id,
@@ -105,7 +105,7 @@ test("POST /purchase/with-lock returns OUT_OF_STOCK and keeps stock unchanged", 
   );
 });
 
-test("POST /purchase/with-lock returns PRODUCT_NOT_FOUND for missing product", async (t) => {
+test("POST /api/purchase/with-lock returns PRODUCT_NOT_FOUND for missing product", async (t) => {
   if (!(await ensureRedisAvailable(t))) {
     return;
   }
@@ -114,7 +114,7 @@ test("POST /purchase/with-lock returns PRODUCT_NOT_FOUND for missing product", a
   const purchaseAttemptRepository = new PurchaseAttemptRepository();
 
   const response = await client
-    .post("/purchase/with-lock")
+    .post("/api/purchase/with-lock")
     .send(
       createPurchasePayload({
         productId: 999999,
@@ -135,7 +135,7 @@ test("POST /purchase/with-lock returns PRODUCT_NOT_FOUND for missing product", a
   );
 });
 
-test("POST /purchase/with-lock validates required fields and quantity", async () => {
+test("POST /api/purchase/with-lock validates required fields and quantity", async () => {
   const client = getRequestClient();
   const invalidBodies = [
     {
@@ -166,7 +166,7 @@ test("POST /purchase/with-lock validates required fields and quantity", async ()
   ];
 
   for (const invalidCase of invalidBodies) {
-    const response = await client.post("/purchase/with-lock").send(invalidCase.body).expect(422);
+    const response = await client.post("/api/purchase/with-lock").send(invalidCase.body).expect(422);
 
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, ERROR_CODES.VALIDATION_ERROR);
@@ -177,7 +177,7 @@ test("POST /purchase/with-lock validates required fields and quantity", async ()
   }
 });
 
-test("POST /purchase/with-lock returns existing order for duplicate requestId without reducing stock twice", async (t) => {
+test("POST /api/purchase/with-lock returns existing order for duplicate requestId without reducing stock twice", async (t) => {
   if (!(await ensureRedisAvailable(t))) {
     return;
   }
@@ -194,8 +194,8 @@ test("POST /purchase/with-lock returns existing order for duplicate requestId wi
     userId: "with-lock-user-005"
   });
 
-  const firstResponse = await client.post("/purchase/with-lock").send(payload).expect(200);
-  const duplicateResponse = await client.post("/purchase/with-lock").send(payload).expect(200);
+  const firstResponse = await client.post("/api/purchase/with-lock").send(payload).expect(200);
+  const duplicateResponse = await client.post("/api/purchase/with-lock").send(payload).expect(200);
   const reloadedProduct = await productRepository.findProductById(product.id);
   const orders = await orderRepository.listOrders({
     requestId: payload.requestId
@@ -214,7 +214,7 @@ test("POST /purchase/with-lock returns existing order for duplicate requestId wi
   );
 });
 
-test("POST /purchase/with-lock returns LOCK_SERVICE_UNAVAILABLE when lock service cannot be reached", async () => {
+test("POST /api/purchase/with-lock returns LOCK_SERVICE_UNAVAILABLE when lock service cannot be reached", async () => {
   const client = getRequestClient();
   const productRepository = new ProductRepository();
   const orderRepository = new OrderRepository();
@@ -232,7 +232,7 @@ test("POST /purchase/with-lock returns LOCK_SERVICE_UNAVAILABLE when lock servic
 
   try {
     const response = await client
-      .post("/purchase/with-lock")
+      .post("/api/purchase/with-lock")
       .send(
         createPurchasePayload({
           productId: product.id,

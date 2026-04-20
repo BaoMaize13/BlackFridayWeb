@@ -1,10 +1,19 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 
 import { authService } from "../services/auth/authService";
-import { mapErrorToMessage } from "../utils/errors";
+import { AppError, mapErrorToMessage } from "../utils/errors";
 import { clearStoredSession, getStoredSession, setStoredSession } from "../utils/storage";
 
 export const AuthContext = createContext(null);
+
+function ensureAdminWorkspaceAccess(user) {
+  if (String(user?.role || "").toLowerCase() !== "admin") {
+    throw new AppError("This frontend currently supports admin accounts only.", {
+      status: 403,
+      errorCode: "FORBIDDEN"
+    });
+  }
+}
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
@@ -33,6 +42,7 @@ export function AuthProvider({ children }) {
 
     try {
       const validated = await authService.validate(stored.token);
+      ensureAdminWorkspaceAccess(validated.user ?? stored.user);
       const nextState = {
         status: "authenticated",
         user: validated.user ?? stored.user ?? null,
@@ -58,8 +68,28 @@ export function AuthProvider({ children }) {
     restoreSession();
   }, [restoreSession]);
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearStoredSession();
+      setState({
+        status: "unauthenticated",
+        user: null,
+        token: null,
+        sessionLabel: null,
+        error: null
+      });
+    };
+
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+
+    return () => {
+      window.removeEventListener("auth:unauthorized", handleUnauthorized);
+    };
+  }, []);
+
   const login = useCallback(async (credentials) => {
     const payload = await authService.login(credentials);
+    ensureAdminWorkspaceAccess(payload.user);
     const nextState = {
       status: "authenticated",
       user: payload.user ?? null,

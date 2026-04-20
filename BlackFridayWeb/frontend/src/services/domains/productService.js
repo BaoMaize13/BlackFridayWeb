@@ -3,19 +3,11 @@ import { apiClient } from "../api/apiClient";
 import { endpoints } from "../api/endpoints";
 
 export async function listProducts(filters = {}) {
-  const payload = await apiClient.requestFirst(
-    endpoints.products.list.map((path) => ({
-      path,
-      query: {
-        page: filters.page,
-        limit: filters.pageSize,
-        size: filters.pageSize,
-        search: filters.search,
-        status: filters.status,
-        stock_level: filters.stockLevel
-      }
-    }))
-  );
+  const payload = await apiClient.request(endpoints.admin.products, {
+    query: {
+      code: filters.code
+    }
+  });
 
   const items = coerceArray(payload).map(normalizeProduct);
   return {
@@ -25,6 +17,6 @@ export async function listProducts(filters = {}) {
 }
 
 export async function getProductById(id) {
-  const payload = await apiClient.requestFirst(endpoints.products.detail(id));
+  const payload = await apiClient.request(endpoints.admin.productDetail(id));
   return normalizeProduct(payload);
 }

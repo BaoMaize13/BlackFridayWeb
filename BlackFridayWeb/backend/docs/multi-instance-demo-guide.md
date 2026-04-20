@@ -69,7 +69,10 @@ Expected:
 Use any healthy instance for admin APIs, for example instance A:
 
 ```powershell
-curl.exe -X POST "http://localhost:3000/admin/products/1/reset" ^
+$login = Invoke-RestMethod -Method POST -Uri "http://localhost:3000/api/auth/login" -ContentType "application/json" -Body '{"email":"admin@example.com","password":"password"}'
+$token = $login.data.token
+curl.exe -X POST "http://localhost:3000/api/admin/products/1/reset" ^
+  -H "Authorization: Bearer $token" ^
   -H "Content-Type: application/json" ^
   -d "{\"stock\":1,\"clearOrders\":true,\"clearLogs\":true}"
 ```
@@ -182,7 +185,7 @@ Expected:
 - query the product list:
 
 ```powershell
-curl.exe "http://localhost:3000/admin/products"
+curl.exe "http://localhost:3000/api/admin/products" -H "Authorization: Bearer $token"
 ```
 
 ### Database is not connected

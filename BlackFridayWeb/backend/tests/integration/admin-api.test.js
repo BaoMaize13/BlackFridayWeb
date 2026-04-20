@@ -4,7 +4,7 @@ const { after, beforeEach, test } = require("node:test");
 const { ORDER_STATUSES, PURCHASE_LOG_ACTIONS, PURCHASE_LOG_RESULTS } = require("../../src/constants/domain");
 const { OrderRepository, ProductRepository, PurchaseAttemptRepository } = require("../../src/repositories");
 const { closeTestDatabase, resetTestDatabase } = require("../setup/test-db");
-const { getRequestClient } = require("../helpers/request.helper");
+const { getRequestClient, loginAsAdmin } = require("../helpers/request.helper");
 
 beforeEach(async () => {
   await resetTestDatabase();
@@ -16,8 +16,10 @@ after(async () => {
 
 test("POST /admin/products creates a product and GET endpoints return it", async () => {
   const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
   const createResponse = await client
-    .post("/admin/products")
+    .post("/api/admin/products")
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .set("x-request-id", "admin-create-product-001")
     .send({
       code: "TEST-PRODUCT-ADMIN-001",
@@ -28,8 +30,15 @@ test("POST /admin/products creates a product and GET endpoints return it", async
     .expect(201);
 
   const productId = createResponse.body.data.id;
-  const listResponse = await client.get("/admin/products").query({ code: "TEST-PRODUCT-ADMIN-001" }).expect(200);
-  const detailResponse = await client.get(`/admin/products/${productId}`).expect(200);
+  const listResponse = await client
+    .get("/api/admin/products")
+    .set("Authorization", `Bearer ${adminSession.token}`)
+    .query({ code: "TEST-PRODUCT-ADMIN-001" })
+    .expect(200);
+  const detailResponse = await client
+    .get(`/api/admin/products/${productId}`)
+    .set("Authorization", `Bearer ${adminSession.token}`)
+    .expect(200);
 
   assert.equal(createResponse.body.success, true);
   assert.equal(createResponse.body.data.code, "TEST-PRODUCT-ADMIN-001");
@@ -38,9 +47,21 @@ test("POST /admin/products creates a product and GET endpoints return it", async
   assert.equal(detailResponse.body.data.id, productId);
 });
 
-test("GET /admin/products/:productId returns 404 for missing product", async () => {
+test("GET /api/admin/products requires authentication", async () => {
   const client = getRequestClient();
-  const response = await client.get("/admin/products/999999").expect(404);
+  const response = await client.get("/api/admin/products").expect(401);
+
+  assert.equal(response.body.success, false);
+  assert.equal(response.body.error.code, "UNAUTHORIZED");
+});
+
+test("GET /api/admin/products/:productId returns 404 for missing product", async () => {
+  const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
+  const response = await client
+    .get("/api/admin/products/999999")
+    .set("Authorization", `Bearer ${adminSession.token}`)
+    .expect(404);
 
   assert.equal(response.body.success, false);
   assert.equal(response.body.error.code, "PRODUCT_NOT_FOUND");
@@ -48,9 +69,11 @@ test("GET /admin/products/:productId returns 404 for missing product", async () 
 
 test("POST /admin/products validates required fields and rejects duplicate code", async () => {
   const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
 
   const invalidResponse = await client
-    .post("/admin/products")
+    .post("/api/admin/products")
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .send({
       code: "",
       name: "",
@@ -60,7 +83,8 @@ test("POST /admin/products validates required fields and rejects duplicate code"
     .expect(422);
 
   const duplicateResponse = await client
-    .post("/admin/products")
+    .post("/api/admin/products")
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .send({
       code: "BF-LOW-STOCK-001",
       name: "Duplicate Product",
@@ -76,16 +100,19 @@ test("POST /admin/products validates required fields and rejects duplicate code"
 
 test("PATCH /admin/products/:productId/stock updates stock and rejects invalid stock", async () => {
   const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
   const productRepository = new ProductRepository();
   const product = await productRepository.findProductByCode("BF-LOW-STOCK-001");
 
   const updateResponse = await client
-    .patch(`/admin/products/${product.id}/stock`)
+    .patch(`/api/admin/products/${product.id}/stock`)
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .send({ stock: 5 })
     .expect(200);
 
   const invalidResponse = await client
-    .patch(`/admin/products/${product.id}/stock`)
+    .patch(`/api/admin/products/${product.id}/stock`)
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .send({ stock: -1 })
     .expect(422);
 
@@ -95,6 +122,7 @@ test("PATCH /admin/products/:productId/stock updates stock and rejects invalid s
 
 test("POST /admin/products/:productId/reset resets stock and clears orders/logs when requested", async () => {
   const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
   const productRepository = new ProductRepository();
   const orderRepository = new OrderRepository();
   const purchaseAttemptRepository = new PurchaseAttemptRepository();
@@ -119,7 +147,8 @@ test("POST /admin/products/:productId/reset resets stock and clears orders/logs 
   });
 
   const response = await client
-    .post(`/admin/products/${product.id}/reset`)
+    .post(`/api/admin/products/${product.id}/reset`)
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .send({
       clearLogs: true,
       clearOrders: true,
@@ -134,6 +163,7 @@ test("POST /admin/products/:productId/reset resets stock and clears orders/logs 
 
 test("GET /admin/orders supports filtering by productId and status", async () => {
   const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
   const productRepository = new ProductRepository();
   const orderRepository = new OrderRepository();
   const product = await productRepository.findProductByCode("BF-MEDIUM-STOCK-010");
@@ -155,7 +185,8 @@ test("GET /admin/orders supports filtering by productId and status", async () =>
   });
 
   const response = await client
-    .get("/admin/orders")
+    .get("/api/admin/orders")
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .query({
       productId: product.id,
       status: ORDER_STATUSES.SUCCESS
@@ -169,7 +200,11 @@ test("GET /admin/orders supports filtering by productId and status", async () =>
 
 test("DELETE /admin/orders requires confirmation when deleting all orders", async () => {
   const client = getRequestClient();
-  const response = await client.delete("/admin/orders").expect(400);
+  const adminSession = await loginAsAdmin(client);
+  const response = await client
+    .delete("/api/admin/orders")
+    .set("Authorization", `Bearer ${adminSession.token}`)
+    .expect(400);
 
   assert.equal(response.body.success, false);
   assert.equal(response.body.error.code, "CONFIRMATION_REQUIRED");
@@ -177,6 +212,7 @@ test("DELETE /admin/orders requires confirmation when deleting all orders", asyn
 
 test("GET /admin/attempt-logs supports filtering by productId and requestId", async () => {
   const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
   const productRepository = new ProductRepository();
   const purchaseAttemptRepository = new PurchaseAttemptRepository();
   const product = await productRepository.findProductByCode("BF-LOW-STOCK-001");
@@ -201,14 +237,17 @@ test("GET /admin/attempt-logs supports filtering by productId and requestId", as
   });
 
   const listResponse = await client
-    .get("/admin/attempt-logs")
+    .get("/api/admin/attempt-logs")
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .query({
       productId: product.id,
       requestId: "admin-attempt-001"
     })
     .expect(200);
-
-  const traceResponse = await client.get("/admin/attempt-logs/admin-attempt-001").expect(200);
+  const traceResponse = await client
+    .get("/api/admin/attempt-logs/admin-attempt-001")
+    .set("Authorization", `Bearer ${adminSession.token}`)
+    .expect(200);
 
   assert.equal(listResponse.body.data.length, 2);
   assert.equal(traceResponse.body.data.length, 2);
@@ -217,6 +256,7 @@ test("GET /admin/attempt-logs supports filtering by productId and requestId", as
 
 test("GET /admin/stats returns stock and order counts for a product", async () => {
   const client = getRequestClient();
+  const adminSession = await loginAsAdmin(client);
   const productRepository = new ProductRepository();
   const orderRepository = new OrderRepository();
   const purchaseAttemptRepository = new PurchaseAttemptRepository();
@@ -241,7 +281,8 @@ test("GET /admin/stats returns stock and order counts for a product", async () =
   });
 
   const response = await client
-    .get("/admin/stats")
+    .get("/api/admin/stats")
+    .set("Authorization", `Bearer ${adminSession.token}`)
     .query({ productId: product.id })
     .expect(200);
 

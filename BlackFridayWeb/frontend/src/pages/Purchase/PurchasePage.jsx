@@ -10,7 +10,11 @@ import StatusBadge from "../../components/ui/StatusBadge";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../hooks/useToast";
 import { getProductById, listProducts } from "../../services/domains/productService";
-import { getRecentPurchases, submitPurchase } from "../../services/domains/purchaseService";
+import {
+  getRecentPurchases,
+  submitPurchaseNoLock,
+  submitPurchaseWithLock
+} from "../../services/domains/purchaseService";
 import { formatCurrency, formatNumber, formatShortDateTime } from "../../utils/formatters";
 
 async function loadPurchaseWorkspace() {
@@ -31,6 +35,7 @@ function PurchasePage() {
   const { showToast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [mode, setMode] = useState("with-lock");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [result, setResult] = useState(null);
@@ -58,7 +63,16 @@ function PurchasePage() {
     setSubmitError("");
 
     try {
-      const purchaseResult = await submitPurchase(selectedProductId, Number(quantity));
+      const purchaseResult =
+        mode === "no-lock"
+          ? await submitPurchaseNoLock({
+              productId: selectedProductId,
+              quantity: Number(quantity)
+            })
+          : await submitPurchaseWithLock({
+              productId: selectedProductId,
+              quantity: Number(quantity)
+            });
       setResult(purchaseResult);
       showToast({
         tone: purchaseResult.success ? "success" : "warn",
@@ -97,9 +111,15 @@ function PurchasePage() {
             <Field label="Quantity">
               <Input type="number" min="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
             </Field>
+            <Field label="Execution Mode">
+              <Select value={mode} onChange={(event) => setMode(event.target.value)}>
+                <option value="with-lock">Buy With Lock</option>
+                <option value="no-lock">Buy Without Lock</option>
+              </Select>
+            </Field>
             <InlineError message={submitError} />
             <Button type="submit" disabled={!selectedProductId || submitting}>
-              {submitting ? "Submitting" : "Submit Purchase"}
+              {submitting ? "Submitting" : mode === "with-lock" ? "Submit Protected Purchase" : "Submit No-Lock Purchase"}
             </Button>
           </form>
         </SectionCard>
@@ -121,6 +141,7 @@ function PurchasePage() {
         <SectionCard title="Latest Purchase Result" description="The last response returned by the backend.">
           <div style={{ display: "grid", gap: "0.75rem" }}>
             <StatusBadge status={result.success ? "SUCCESS" : "FAILED"} />
+            <div>Mode: {mode === "with-lock" ? "With Lock" : "No Lock"}</div>
             <div>{result.message}</div>
             <div>Order ID: {result.orderId ?? "—"}</div>
             <div>Request ID: {result.requestId ?? "—"}</div>

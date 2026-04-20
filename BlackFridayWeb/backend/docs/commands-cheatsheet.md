@@ -14,6 +14,13 @@ npm install
 Copy-Item .env.example .env
 ```
 
+## Login As Seeded Admin
+
+```powershell
+$login = Invoke-RestMethod -Method POST -Uri "http://localhost:4000/api/auth/login" -ContentType "application/json" -Body '{"email":"admin@example.com","password":"password"}'
+$token = $login.data.token
+```
+
 ## Run Redis
 
 ```powershell
@@ -86,6 +93,8 @@ $env:PRODUCT_ID="1"
 $env:INITIAL_STOCK="1"
 $env:CONCURRENT_REQUESTS="20"
 $env:REQUEST_PREFIX="demo-no-lock"
+$env:ADMIN_EMAIL="admin@example.com"
+$env:ADMIN_PASSWORD="password"
 npm run evidence:no-lock
 ```
 
@@ -99,6 +108,12 @@ npx cross-env BASE_URL=http://localhost:4000 PRODUCT_ID=1 INITIAL_STOCK=1 CONCUR
 
 ```powershell
 npx cross-env BASE_URL=http://localhost:4000 PRODUCT_ID=1 INITIAL_STOCK=1 CONCURRENT_REQUESTS=20 REQUEST_PREFIX=demo-with-lock npm run evidence:with-lock
+```
+
+## Example Protected Admin Request
+
+```powershell
+curl.exe "http://localhost:4000/api/admin/products" -H "Authorization: Bearer $token"
 ```
 
 ## Example Multi-Instance With-Lock

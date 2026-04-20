@@ -172,7 +172,7 @@ The compare script accepts raw evidence JSON and internally normalizes both sour
 The backend now includes:
 
 ```text
-GET /admin/metrics
+GET /api/admin/metrics
 ```
 
 Supported query params:
@@ -185,7 +185,7 @@ Supported query params:
 Example:
 
 ```text
-GET /admin/metrics?productId=1&initialStock=1&quantity=1&includeServerBreakdown=true
+GET /api/admin/metrics?productId=1&initialStock=1&quantity=1&includeServerBreakdown=true
 ```
 
 This endpoint returns:

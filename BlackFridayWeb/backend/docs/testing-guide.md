@@ -91,13 +91,13 @@ The integration test suite checks:
 - health endpoint and standardized errors
 - repository operations
 - admin APIs
-- single-request `POST /purchase/no-lock`
-- single-request `POST /purchase/with-lock`
+- single-request `POST /api/purchase/no-lock`
+- single-request `POST /api/purchase/with-lock`
 - Redis lock service behavior
 
 ### Concurrency Tests
 The concurrency test suite checks:
-- multiple concurrent requests to `POST /purchase/with-lock`
+- multiple concurrent requests to `POST /api/purchase/with-lock`
 - final stock remains consistent
 - success order count does not exceed available stock
 - final stock never becomes negative
@@ -105,7 +105,7 @@ The concurrency test suite checks:
 ## Redis-Dependent Tests
 Some tests require Redis:
 - lock service tests
-- most `/purchase/with-lock` tests
+- most `/api/purchase/with-lock` tests
 - concurrency tests
 
 If Redis is not running, those tests are skipped with a clear message.
@@ -168,8 +168,8 @@ This ensures:
 Expected successful output pattern:
 
 ```text
-✔ POST /purchase/no-lock succeeds for a single in-stock request
-✔ POST /admin/products creates a product and GET endpoints return it
+✔ POST /api/purchase/no-lock succeeds for a single in-stock request
+✔ POST /api/admin/products creates a product and GET endpoints return it
 ✔ validatePurchaseNoLockBody rejects missing productId
 ```
 

@@ -12,21 +12,21 @@ import { useApi } from "../../hooks/useApi";
 import { listLogs } from "../../services/domains/logService";
 import { listOrders } from "../../services/domains/orderService";
 import { listProducts } from "../../services/domains/productService";
-import { listTestReports } from "../../services/domains/testService";
-import { getHealth } from "../../services/domains/dashboardService";
+import { getAdminMetrics, getAdminStats, getHealth } from "../../services/domains/dashboardService";
 import { formatPercent, formatShortDateTime, safeText } from "../../utils/formatters";
 
 async function loadDashboardSnapshot() {
-  const [healthResult, productsResult, ordersResult, logsResult, reportsResult] =
+  const [healthResult, statsResult, metricsResult, productsResult, ordersResult, logsResult] =
     await Promise.allSettled([
       getHealth(),
+      getAdminStats(),
+      getAdminMetrics({ includeServerBreakdown: true }),
       listProducts({ page: 1, pageSize: 100 }),
       listOrders({ page: 1, pageSize: 100 }),
-      listLogs({ page: 1, pageSize: 100 }),
-      listTestReports({ page: 1, pageSize: 50 })
+      listLogs({ page: 1, pageSize: 100 })
     ]);
 
-  const fulfilled = [healthResult, productsResult, ordersResult, logsResult, reportsResult].filter(
+  const fulfilled = [healthResult, statsResult, metricsResult, productsResult, ordersResult, logsResult].filter(
     (entry) => entry.status === "fulfilled"
   );
 
@@ -37,10 +37,11 @@ async function loadDashboardSnapshot() {
   const products = productsResult.status === "fulfilled" ? productsResult.value.items : [];
   const orders = ordersResult.status === "fulfilled" ? ordersResult.value.items : [];
   const logs = logsResult.status === "fulfilled" ? logsResult.value.items : [];
-  const reports = reportsResult.status === "fulfilled" ? reportsResult.value.items : [];
+  const stats = statsResult.status === "fulfilled" ? statsResult.value : null;
+  const metrics = metricsResult.status === "fulfilled" ? metricsResult.value : null;
 
-  const successfulOrders = orders.filter((order) => order.status === "SUCCESS").length;
-  const failedOrders = orders.filter((order) => order.status === "FAILED").length;
+  const successfulOrders = stats?.successOrders ?? orders.filter((order) => order.status === "SUCCESS").length;
+  const failedOrders = stats?.failedOrders ?? orders.filter((order) => order.status === "FAILED").length;
   const recentActivity = [
     ...orders.map((order) => ({
       id: `order-${order.id}`,
@@ -55,13 +56,6 @@ async function loadDashboardSnapshot() {
       meta: log.message,
       status: log.level,
       timestamp: log.createdAt
-    })),
-    ...reports.map((report) => ({
-      id: `report-${report.id}`,
-      label: `Report ${report.id}`,
-      meta: report.result,
-      status: report.result,
-      timestamp: report.createdAt
     }))
   ]
     .filter((item) => item.timestamp)
@@ -70,22 +64,31 @@ async function loadDashboardSnapshot() {
 
   return {
     health: healthResult.status === "fulfilled" ? healthResult.value : null,
+    metrics,
     products,
     orders,
     logs,
-    reports,
+    statsSnapshot: stats,
     stats: {
-      productCount: products.length,
-      orderCount: orders.length,
-      successRate: orders.length ? (successfulOrders / orders.length) * 100 : null,
-      signalCount: failedOrders + logs.filter((entry) => entry.level === "ERROR").length
+      productCount: stats?.totalProducts ?? products.length,
+      orderCount: stats?.totalOrders ?? orders.length,
+      successRate:
+        stats?.totalOrders
+          ? (successfulOrders / stats.totalOrders) * 100
+          : orders.length
+            ? (successfulOrders / orders.length) * 100
+            : null,
+      signalCount:
+        failedOrders +
+        logs.filter((entry) => entry.level === "ERROR").length +
+        (metrics?.errors?.lockTimeout ?? 0)
     },
     recentActivity,
     chartItems: [
       { label: "Success", value: successfulOrders },
       { label: "Failed", value: failedOrders },
       { label: "Logs", value: logs.length },
-      { label: "Reports", value: reports.length }
+      { label: "Products", value: products.length }
     ]
   };
 }
@@ -216,7 +219,7 @@ function DashboardPage() {
               ["Health", Boolean(data.health), Server],
               ["Products", Boolean(data.products.length), Package],
               ["Orders", Boolean(data.orders.length), Database],
-              ["Reports", Boolean(data.reports.length), FileBarChart2]
+              ["Metrics", Boolean(data.metrics), FileBarChart2]
             ].map(([label, available, Icon]) => (
               <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>

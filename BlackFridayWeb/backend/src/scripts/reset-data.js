@@ -1,6 +1,8 @@
 const seedProducts = require("../database/seeds/product-seed-data");
+const seedUsers = require("../database/seeds/user-seed-data");
 const { closeDatabase, initializeDatabase, runMigrations, withTransaction } = require("../database/client");
 const { OrderRepository, ProductRepository, PurchaseAttemptRepository } = require("../repositories");
+const authService = require("../services/auth.service");
 const { logger } = require("../utils/logger");
 
 async function resetTestData(options = {}) {
@@ -19,6 +21,9 @@ async function resetTestData(options = {}) {
 
       await purchaseAttemptRepository.deleteAllAttemptLogsForTest({ executor: transaction });
       await orderRepository.deleteAllOrdersForTest({ executor: transaction });
+      await authService.seedUsers(seedUsers, {
+        executor: transaction
+      });
 
       const restoredProducts = [];
 

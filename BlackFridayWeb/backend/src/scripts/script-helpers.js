@@ -94,6 +94,17 @@ function buildUrl(baseUrl, pathname, query = {}) {
   return url;
 }
 
+function buildAuthorizationHeaders(token, headers = {}) {
+  if (!token) {
+    return headers;
+  }
+
+  return {
+    ...headers,
+    Authorization: `Bearer ${token}`
+  };
+}
+
 async function requestJson(baseUrl, method, pathname, options = {}) {
   const { body, headers = {}, query, timeoutMs = 10000 } = options;
   const url = buildUrl(baseUrl, pathname, query);
@@ -139,6 +150,34 @@ async function requestJson(baseUrl, method, pathname, options = {}) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function authenticateAdmin(baseUrl, options = {}) {
+  const email = parseOptionalString(
+    options.adminEmail || process.env.ADMIN_EMAIL || process.env.AUTH_EMAIL,
+    "adminEmail",
+    "admin@example.com"
+  );
+  const password = parseOptionalString(
+    options.adminPassword || process.env.ADMIN_PASSWORD || process.env.AUTH_PASSWORD,
+    "adminPassword",
+    "password"
+  );
+  const response = await requestJson(baseUrl, "POST", "/api/auth/login", {
+    auth: false,
+    body: {
+      email,
+      password
+    },
+    timeoutMs: options.timeoutMs || 10000
+  });
+  const session = unwrapApiSuccess(`POST ${new URL("/api/auth/login", baseUrl).toString()}`, response);
+
+  if (!session?.token) {
+    throw new Error("Admin authentication succeeded but no JWT token was returned.");
+  }
+
+  return session;
 }
 
 function describeApiFailure(label, response) {
@@ -210,6 +249,8 @@ function aggregateCounts(values = []) {
 
 module.exports = {
   aggregateCounts,
+  authenticateAdmin,
+  buildAuthorizationHeaders,
   buildUrl,
   describeApiFailure,
   extractSettledApiData,

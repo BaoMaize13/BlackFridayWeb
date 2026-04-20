@@ -14,7 +14,7 @@ after(async () => {
   await closeTestDatabase();
 });
 
-test("POST /purchase/no-lock succeeds for a single in-stock request", async () => {
+test("POST /api/purchase/no-lock succeeds for a single in-stock request", async () => {
   const client = getRequestClient();
   const productRepository = new ProductRepository();
   const orderRepository = new OrderRepository();
@@ -22,7 +22,7 @@ test("POST /purchase/no-lock succeeds for a single in-stock request", async () =
   const product = await productRepository.findProductByCode("BF-LOW-STOCK-001");
 
   const response = await client
-    .post("/purchase/no-lock")
+    .post("/api/purchase/no-lock")
     .set("x-request-id", "purchase-no-lock-success-001")
     .send(
       createPurchasePayload({
@@ -50,7 +50,7 @@ test("POST /purchase/no-lock succeeds for a single in-stock request", async () =
   );
 });
 
-test("POST /purchase/no-lock returns OUT_OF_STOCK when stock is zero", async () => {
+test("POST /api/purchase/no-lock returns OUT_OF_STOCK when stock is zero", async () => {
   const client = getRequestClient();
   const productRepository = new ProductRepository();
   const orderRepository = new OrderRepository();
@@ -62,7 +62,7 @@ test("POST /purchase/no-lock returns OUT_OF_STOCK when stock is zero", async () 
   });
 
   const response = await client
-    .post("/purchase/no-lock")
+    .post("/api/purchase/no-lock")
     .send(
       createPurchasePayload({
         productId: product.id,
@@ -88,12 +88,12 @@ test("POST /purchase/no-lock returns OUT_OF_STOCK when stock is zero", async () 
   );
 });
 
-test("POST /purchase/no-lock returns PRODUCT_NOT_FOUND for missing product", async () => {
+test("POST /api/purchase/no-lock returns PRODUCT_NOT_FOUND for missing product", async () => {
   const client = getRequestClient();
   const purchaseAttemptRepository = new PurchaseAttemptRepository();
 
   const response = await client
-    .post("/purchase/no-lock")
+    .post("/api/purchase/no-lock")
     .send(
       createPurchasePayload({
         productId: 999999,
@@ -114,7 +114,7 @@ test("POST /purchase/no-lock returns PRODUCT_NOT_FOUND for missing product", asy
   );
 });
 
-test("POST /purchase/no-lock validates required fields and quantity", async () => {
+test("POST /api/purchase/no-lock validates required fields and quantity", async () => {
   const client = getRequestClient();
   const invalidBodies = [
     {
@@ -145,7 +145,7 @@ test("POST /purchase/no-lock validates required fields and quantity", async () =
   ];
 
   for (const invalidCase of invalidBodies) {
-    const response = await client.post("/purchase/no-lock").send(invalidCase.body).expect(422);
+    const response = await client.post("/api/purchase/no-lock").send(invalidCase.body).expect(422);
 
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, "VALIDATION_ERROR");
@@ -156,7 +156,7 @@ test("POST /purchase/no-lock validates required fields and quantity", async () =
   }
 });
 
-test("POST /purchase/no-lock rejects duplicate requestId without creating a second success order", async () => {
+test("POST /api/purchase/no-lock rejects duplicate requestId without creating a second success order", async () => {
   const client = getRequestClient();
   const productRepository = new ProductRepository();
   const orderRepository = new OrderRepository();
@@ -168,8 +168,8 @@ test("POST /purchase/no-lock rejects duplicate requestId without creating a seco
     userId: "user-005"
   });
 
-  await client.post("/purchase/no-lock").send(payload).expect(200);
-  const duplicateResponse = await client.post("/purchase/no-lock").send(payload).expect(409);
+  await client.post("/api/purchase/no-lock").send(payload).expect(200);
+  const duplicateResponse = await client.post("/api/purchase/no-lock").send(payload).expect(409);
   const orders = await orderRepository.listOrders({
     requestId: payload.requestId
   });

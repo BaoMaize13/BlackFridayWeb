@@ -75,12 +75,18 @@ const lockConfig = Object.freeze({
   waitTimeoutMs: env.LOCK_WAIT_TIMEOUT_MS
 });
 
+const authConfig = Object.freeze({
+  expiresIn: env.JWT_EXPIRES_IN,
+  jwtSecret: env.JWT_SECRET
+});
+
 const purchaseConfig = Object.freeze({
   noLockDelayMs: env.NO_LOCK_PURCHASE_DELAY_MS
 });
 
 module.exports = Object.freeze({
   appConfig,
+  authConfig,
   databaseConfig,
   lockConfig,
   logConfig,

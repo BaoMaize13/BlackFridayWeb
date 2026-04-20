@@ -29,7 +29,7 @@ async function login(credentials) {
   const payload = await apiClient.request(endpoints.auth.login, {
     method: "POST",
     body: {
-      username: credentials.username,
+      email: credentials.email ?? credentials.username,
       password: credentials.password
     },
     auth: false
@@ -47,7 +47,7 @@ async function login(credentials) {
 }
 
 async function validate(token) {
-  const payload = await apiClient.request(endpoints.auth.validate, {
+  const payload = await apiClient.request(endpoints.auth.me, {
     method: "GET",
     headers: token
       ? {

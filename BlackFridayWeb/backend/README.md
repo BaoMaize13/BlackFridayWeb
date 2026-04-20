@@ -2,28 +2,25 @@
 
 ## 1. Gioi thieu do an
 
-Backend nay mo phong bai toan tranh chap du lieu khi nhieu request hoac nhieu backend server cung luc xu ly viec mua cung mot san pham.
+Backend nay mo phong bai toan tranh chap du lieu khi nhieu request, hoac nhieu backend instances, cung luc mua mot san pham co ton kho thap.
 
-- `POST /purchase/no-lock` giu baseline khong khoa de tai hien race condition va overselling
-- `POST /purchase/with-lock` dung Redis distributed lock de serialize theo `productId` va giu inventory consistent
-
-Muc tieu demo:
-
-- cho thay no-lock co rui ro oversell / stock mismatch
-- cho thay with-lock ngan oversell
-- cho thay multi-instance with-lock van dung khi server-A va server-B cung dung chung DB va Redis
+- `POST /api/purchase/no-lock` giu baseline co chu y khong khoa de tai hien race condition
+- `POST /api/purchase/with-lock` dung Redis distributed lock de giu inventory consistent
+- `/api/admin/*` la nhom API quan tri duoc bao ve bang JWT + role `admin`
+- `/api/auth/*` cap session JWT that de frontend login va goi protected APIs
 
 ## 2. Tinh nang chinh
 
 - mo phong no-lock race condition
 - Redis distributed lock voi owner token + Lua safe release
+- auth backend bang JWT
 - audit logs va purchase attempt logs
-- admin APIs de tao/reset product, xem orders, xem logs, xem metrics
+- admin APIs de tao/reset product, xem orders, xem logs, xem stats, xem metrics
 - load test scripts va evidence scripts
 - JSON / Markdown / CSV reports
 - multi-instance demo
 - automated tests, edge-case tests, concurrency tests
-- metrics comparison no-lock vs with-lock
+- compare report no-lock vs with-lock
 
 ## 3. Tech Stack
 
@@ -31,7 +28,7 @@ Muc tieu demo:
 - Express
 - SQLite mac dinh cho local demo
 - Redis cho distributed lock
-- Knex cho data access
+- Knex cho data access va migrations
 - `node:test` + `supertest` cho automated tests
 - Docker Compose de bat Redis local
 
@@ -41,12 +38,15 @@ Muc tieu demo:
 backend/
 ├─ src/
 │  ├─ config/
+│  ├─ constants/
 │  ├─ controllers/
-│  ├─ services/
-│  ├─ repositories/
+│  ├─ database/
+│  ├─ middlewares/
 │  ├─ models/
+│  ├─ repositories/
 │  ├─ routes/
 │  ├─ scripts/
+│  ├─ services/
 │  ├─ reporting/
 │  └─ utils/
 ├─ tests/
@@ -71,27 +71,38 @@ Copy file mau:
 Copy-Item .env.example .env
 ```
 
-Canh cac bien quan trong:
+Nhung bien quan trong:
 
-- `DB_URL`: mac dinh la SQLite local `./data/blackfridayweb.sqlite`
-- `REDIS_URL`: mac dinh la `redis://localhost:6379/0`
-- `PORT`: backend port
-- `SERVER_ID`: nen set rieng khi chay multi-instance
+- `DB_URL`
+- `REDIS_URL`
+- `PORT`
+- `SERVER_ID`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
 
-Vi du:
+Mac dinh local:
 
 ```dotenv
 PORT=4000
 SERVER_ID=server-4000
 DB_URL=./data/blackfridayweb.sqlite
 REDIS_URL=redis://localhost:6379/0
+JWT_SECRET=change_me_for_demo_and_production
+JWT_EXPIRES_IN=1d
 ```
 
 ## 7. Chay DB va Redis
 
-DB local mac dinh la SQLite file, nen khong can bat mot DB server rieng cho demo local.
+DB local mac dinh la SQLite file, nen demo local khong can mot DB server rieng.
 
-Bat Redis bang Docker Compose:
+Chay migration va seed:
+
+```powershell
+npm run db:migrate
+npm run db:seed
+```
+
+Bat Redis:
 
 ```powershell
 npm run redis:up
@@ -103,7 +114,7 @@ Hoac:
 docker compose up -d redis
 ```
 
-Kiem tra log Redis:
+Kiem tra Redis:
 
 ```powershell
 npm run redis:logs
@@ -124,52 +135,59 @@ npm run dev:server-b
 
 ## 9. Health Check
 
-```text
-GET /health
-```
+Co the dung:
+
+- `GET /health`
+- `GET /api/health`
 
 Vi du:
 
 ```powershell
 curl.exe "http://localhost:4000/health"
+curl.exe "http://localhost:4000/api/health"
 ```
 
 ## 10. Demo nhanh
 
-Recommended demo flow:
+### B1. Dang nhap lay JWT
 
-1. Liet ke san pham hoac tao san pham moi
-2. Reset product ve `stock = 1`
-3. Chay `evidence:no-lock`
-4. Chay `evidence:with-lock`
-5. Chay `report:compare`
-6. Neu can chung minh phan tan, chay multi-instance demo
+Sau khi seed, mac dinh co tai khoan:
 
-Tim `productId`:
+- email: `admin@example.com`
+- password: `password`
+
+Lay token bang PowerShell:
 
 ```powershell
-curl.exe "http://localhost:4000/admin/products"
+$login = Invoke-RestMethod -Method POST -Uri "http://localhost:4000/api/auth/login" -ContentType "application/json" -Body '{"email":"admin@example.com","password":"password"}'
+$token = $login.data.token
 ```
 
-Reset san pham:
+### B2. Tim `productId`
 
 ```powershell
-curl.exe -X POST "http://localhost:4000/admin/products/1/reset" -H "Content-Type: application/json" -d "{\"stock\":1,\"clearOrders\":true,\"clearLogs\":true}"
+curl.exe "http://localhost:4000/api/admin/products" -H "Authorization: Bearer $token"
 ```
 
-Chay no-lock evidence:
+### B3. Reset product ve `stock = 1`
+
+```powershell
+curl.exe -X POST "http://localhost:4000/api/admin/products/1/reset" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"stock\":1,\"clearOrders\":true,\"clearLogs\":true}"
+```
+
+### B4. Chay no-lock evidence
 
 ```powershell
 npm run evidence:no-lock
 ```
 
-Chay with-lock evidence:
+### B5. Chay with-lock evidence
 
 ```powershell
 npm run evidence:with-lock
 ```
 
-Chay compare report:
+### B6. Compare report
 
 ```powershell
 $env:NO_LOCK_REPORT="reports\\no-lock-evidence-xxx.json"
@@ -177,7 +195,36 @@ $env:WITH_LOCK_REPORT="reports\\with-lock-evidence-yyy.json"
 npm run report:compare
 ```
 
-## 11. Test
+Ghi chu:
+
+- CLI scripts tu dang nhap bang seeded admin mac dinh
+- co the override bang `ADMIN_EMAIL` va `ADMIN_PASSWORD`
+
+## 11. API Contract Chinh
+
+Auth:
+
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `GET /api/auth/me`
+- `GET /api/auth/validate`
+- `POST /api/auth/logout`
+
+Admin:
+
+- `GET /api/admin/products`
+- `POST /api/admin/products`
+- `GET /api/admin/orders`
+- `GET /api/admin/attempt-logs`
+- `GET /api/admin/stats`
+- `GET /api/admin/metrics`
+
+Purchase:
+
+- `POST /api/purchase/no-lock`
+- `POST /api/purchase/with-lock`
+
+## 12. Test
 
 ```powershell
 npm test
@@ -190,10 +237,10 @@ npm run test:lock
 
 Ghi chu trung thuc:
 
-- Neu Redis chua chay, Redis-dependent tests co the skip hoac fail voi message ro rang
-- Muon verify day du with-lock va lock-service, hay bat Redis roi chay lai
+- neu Redis chua chay, Redis-dependent tests co the skip hoac fail ro rang
+- muon verify day du with-lock va lock service, hay bat Redis roi chay lai
 
-## 12. Reports
+## 13. Reports
 
 Report duoc ghi vao:
 
@@ -209,13 +256,7 @@ Thuong gap:
 - compare report
 - metrics summary report
 
-Sample note:
-
-- No-lock co the ra `RACE_CONDITION_REPRODUCED`, `RACE_WINDOW_OBSERVED`, hoac `RACE_CONDITION_NOT_REPRODUCED`
-- With-lock voi `stock = 1`, `requests = 20` ky vong `successOrders = 1`, `finalStock = 0`, `dataConsistent = YES`
-- Multi-instance ky vong co `requestDistribution` qua ca server-A va server-B, va `dataConsistent = YES`
-
-## 13. Docs
+## 14. Docs
 
 - [Demo Guide](./docs/demo-guide.md)
 - [Demo Checklist](./docs/demo-checklist.md)
@@ -227,12 +268,12 @@ Sample note:
 - [Edge Case Testing Guide](./docs/edge-case-testing-guide.md)
 - [Multi-Instance Demo Guide](./docs/multi-instance-demo-guide.md)
 - [Metrics And Reporting Guide](./docs/metrics-and-reporting-guide.md)
-- [Phase 17 Refactor Report](./docs/refactor-report-phase-17.md)
 
-## 14. Luu y trung thuc
+## 15. Luu y trung thuc
 
-- No-lock race condition khong deterministic, nen co the khong reproduce trong moi lan chay
-- Neu no-lock chua reproduce, hay tang `CONCURRENT_REQUESTS` hoac `NO_LOCK_PURCHASE_DELAY_MS`, roi chay lai
-- With-lock can Redis dang chay
-- Multi-instance can mo it nhat 2 terminal / 2 backend processes
-- Khong duoc ket luan pass cho with-lock neu `dataConsistent = false`
+- no-lock race condition khong deterministic, nen co the khong reproduce trong moi lan chay
+- neu no-lock chua reproduce, hay tang `CONCURRENT_REQUESTS` hoac `NO_LOCK_PURCHASE_DELAY_MS`
+- with-lock can Redis dang chay
+- multi-instance can it nhat 2 backend processes
+- admin APIs khong con public; can JWT admin token
+- khong duoc ket luan with-lock pass neu `dataConsistent = false`

@@ -1,5 +1,5 @@
 import { AppError } from "../../utils/errors";
-import { getStoredSession } from "../../utils/storage";
+import { clearStoredSession, getStoredSession } from "../../utils/storage";
 
 function getApiBaseUrl() {
   return (import.meta.env.VITE_API_BASE_URL || "http://localhost:4000").replace(/\/+$/, "");
@@ -62,13 +62,26 @@ async function request(path, options = {}) {
     const payload = await parseResponse(response);
 
     if (!response.ok) {
-      throw new AppError(
-        payload?.message || payload?.error || `HTTP ${response.status}`,
+      const errorCode = payload?.error?.code ?? null;
+      const error = new AppError(
+        payload?.message || payload?.error?.message || `HTTP ${response.status}`,
         {
           status: response.status,
-          details: payload
+          errorCode,
+          details: payload?.error?.details ?? payload
         }
       );
+
+      if (options.auth !== false && response.status === 401) {
+        clearStoredSession();
+        window.dispatchEvent(new CustomEvent("auth:unauthorized", { detail: { errorCode } }));
+
+        if (window.location.pathname !== "/login") {
+          window.location.assign("/login");
+        }
+      }
+
+      throw error;
     }
 
     return payload;
@@ -89,32 +102,8 @@ async function request(path, options = {}) {
   }
 }
 
-async function requestFirst(candidates, options = {}) {
-  let lastError = null;
-
-  for (const candidate of candidates) {
-    const descriptor = typeof candidate === "string" ? { path: candidate } : candidate;
-
-    try {
-      return await request(descriptor.path, {
-        ...options,
-        query: descriptor.query ?? options.query,
-        method: descriptor.method ?? options.method
-      });
-    } catch (error) {
-      lastError = error;
-      if (![404, 405, 501].includes(error.status)) {
-        throw error;
-      }
-    }
-  }
-
-  throw lastError ?? new AppError("No configured endpoint responded successfully.");
-}
-
 export const apiClient = {
   request,
-  requestFirst,
   getApiBaseUrl,
   toAbsoluteUrl
 };

@@ -33,7 +33,7 @@ async function runWithLockConcurrencyCase(testContext, scenario) {
   });
 
   const responses = await sendConcurrentPurchases({
-    endpoint: "/purchase/with-lock",
+    endpoint: "/api/purchase/with-lock",
     productId: product.id,
     quantity: scenario.quantity,
     requestPrefix: scenario.requestPrefix,

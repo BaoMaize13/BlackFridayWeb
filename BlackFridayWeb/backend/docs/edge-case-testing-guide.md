@@ -106,7 +106,7 @@ Redis is required for this test run but is unavailable.
 ## Phase 14 Edge Cases Covered
 ### Lock Timeout
 - hold a product lock manually
-- call `POST /purchase/with-lock` on the same product
+- call `POST /api/purchase/with-lock` on the same product
 - expect `LOCK_TIMEOUT`
 - verify:
   - no success order
@@ -115,7 +115,7 @@ Redis is required for this test run but is unavailable.
 
 ### Redis Unavailable
 - simulate lock-service failure
-- call `POST /purchase/with-lock`
+- call `POST /api/purchase/with-lock`
 - expect `LOCK_SERVICE_UNAVAILABLE`
 - verify:
   - no success order
@@ -171,7 +171,7 @@ Redis is required for this test run but is unavailable.
 The validation edge test also verifies the request is rejected before lock acquisition.
 
 ### Product Not Found
-- call `POST /purchase/with-lock` with a missing product id
+- call `POST /api/purchase/with-lock` with a missing product id
 - verify:
   - `PRODUCT_NOT_FOUND`
   - no crash

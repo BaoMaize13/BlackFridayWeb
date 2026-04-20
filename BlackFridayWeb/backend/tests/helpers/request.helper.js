@@ -8,6 +8,15 @@ function getRequestClient() {
   return request(app);
 }
 
+async function loginAsAdmin(client = getRequestClient()) {
+  const response = await client.post("/api/auth/login").send({
+    email: "admin@example.com",
+    password: "password"
+  }).expect(200);
+
+  return response.body.data;
+}
+
 function createPurchasePayload({ productId, quantity = 1, requestId, userId }) {
   return {
     productId,
@@ -50,5 +59,6 @@ async function sendConcurrentPurchases({
 module.exports = {
   createPurchasePayload,
   getRequestClient,
+  loginAsAdmin,
   sendConcurrentPurchases
 };

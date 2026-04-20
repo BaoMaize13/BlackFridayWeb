@@ -13,11 +13,14 @@ Can chung minh 3 diem:
 - Node.js da cai
 - dependency da cai bang `npm install`
 - `.env` da duoc tao tu `.env.example`
+- migration va seed da chay
 - Redis dang chay
 - backend chay duoc
-- biet cach mo nhieu terminal cho multi-instance demo
 
-DB local mac dinh la SQLite file, nen demo local khong can mot DB server rieng.
+Tai khoan demo mac dinh sau `npm run db:seed`:
+
+- `admin@example.com`
+- `password`
 
 ## Step 0: Start Redis
 
@@ -25,12 +28,14 @@ DB local mac dinh la SQLite file, nen demo local khong can mot DB server rieng.
 npm run redis:up
 ```
 
-Neu khong dung Docker Compose:
+## Step 1: Run Migration And Seed
 
-- tu bat Redis theo `REDIS_URL`
-- mac dinh: `redis://localhost:6379/0`
+```powershell
+npm run db:migrate
+npm run db:seed
+```
 
-## Step 1: Start Backend
+## Step 2: Start Backend
 
 ```powershell
 npm run dev
@@ -39,42 +44,42 @@ npm run dev
 Health check:
 
 ```powershell
-curl.exe "http://localhost:4000/health"
+curl.exe "http://localhost:4000/api/health"
+```
+
+## Step 3: Login And Capture JWT
+
+PowerShell:
+
+```powershell
+$login = Invoke-RestMethod -Method POST -Uri "http://localhost:4000/api/auth/login" -ContentType "application/json" -Body '{"email":"admin@example.com","password":"password"}'
+$token = $login.data.token
 ```
 
 Ky vong:
 
-- HTTP `200`
-- response co `success: true`
+- login thanh cong
+- co `token`
+- co `user.role = admin`
 
-## Step 2: Create Or Find Product
+## Step 4: Create Or Find Product
 
-### Cach 1: Lay product tu seed
+Lay product list:
 
 ```powershell
-curl.exe "http://localhost:4000/admin/products"
+curl.exe "http://localhost:4000/api/admin/products" -H "Authorization: Bearer $token"
 ```
 
-Chon 1 `productId` trong danh sach.
-
-### Cach 2: Tao product moi
+Neu can tao product moi:
 
 ```powershell
-curl.exe -X POST "http://localhost:4000/admin/products" -H "Content-Type: application/json" -d "{\"code\":\"DEMO-PHASE18-001\",\"name\":\"Distributed Lock Demo Product\",\"price\":199000,\"stock\":10}"
+curl.exe -X POST "http://localhost:4000/api/admin/products" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"code\":\"DEMO-PHASE18-001\",\"name\":\"Distributed Lock Demo Product\",\"price\":199000,\"stock\":10}"
 ```
 
-Sau do luu lai `productId` tra ve trong response.
-
-## Step 3: Reset Product To Stock = 1
+## Step 5: Reset Product To Stock = 1
 
 ```powershell
-curl.exe -X POST "http://localhost:4000/admin/products/<productId>/reset" -H "Content-Type: application/json" -d "{\"stock\":1,\"clearOrders\":true,\"clearLogs\":true}"
-```
-
-Vi du:
-
-```powershell
-curl.exe -X POST "http://localhost:4000/admin/products/1/reset" -H "Content-Type: application/json" -d "{\"stock\":1,\"clearOrders\":true,\"clearLogs\":true}"
+curl.exe -X POST "http://localhost:4000/api/admin/products/<productId>/reset" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"stock\":1,\"clearOrders\":true,\"clearLogs\":true}"
 ```
 
 Ky vong:
@@ -82,15 +87,9 @@ Ky vong:
 - stock ve `1`
 - orders va logs cu duoc clear
 
-## Step 4: Run No-Lock Test
+## Step 6: Run No-Lock Test
 
-Neu muon chay nhanh:
-
-```powershell
-npm run evidence:no-lock
-```
-
-Neu muon chi dinh `productId` ro hon:
+CLI script tu dang nhap bang seeded admin mac dinh:
 
 ```powershell
 $env:PRODUCT_ID="<productId>"
@@ -110,7 +109,7 @@ Neu chua reproduce:
 - tang `NO_LOCK_PURCHASE_DELAY_MS`
 - chay lai 2-3 lan
 
-## Step 5: Run With-Lock Test
+## Step 7: Run With-Lock Test
 
 ```powershell
 $env:PRODUCT_ID="<productId>"
@@ -119,7 +118,7 @@ $env:CONCURRENT_REQUESTS="20"
 npm run evidence:with-lock
 ```
 
-Ky vong voi case co dien `stock = 1`, `requests = 20`, `quantity = 1`:
+Ky vong:
 
 - `successOrders = 1`
 - `finalStock = 0`
@@ -130,9 +129,9 @@ Ky vong voi case co dien `stock = 1`, `requests = 20`, `quantity = 1`:
 Neu Redis chua chay:
 
 - with-lock se khong duoc verify day du
-- script co the bao `LOCK_SERVICE_UNAVAILABLE` hoac ket noi Redis that bai
+- script co the bao `LOCK_SERVICE_UNAVAILABLE`
 
-## Step 6: Compare Reports
+## Step 8: Compare Reports
 
 Tim 2 file JSON report vua tao trong thu muc `reports/`, sau do chay:
 
@@ -147,7 +146,7 @@ Ky vong:
 - sinh compare report JSON / Markdown / CSV
 - compare report noi ro no-lock khong an toan, with-lock consistent
 
-## Step 7: Multi-Instance Demo
+## Step 9: Multi-Instance Demo
 
 ### Terminal 1: server A
 
@@ -161,19 +160,13 @@ npm run dev:server-a
 npm run dev:server-b
 ```
 
-### Terminal 3: chay multi-instance with-lock
+### Terminal 3: multi-instance with-lock
 
 ```powershell
 npx cross-env BASE_URLS=http://localhost:3000,http://localhost:3001 PRODUCT_ID=<productId> INITIAL_STOCK=1 CONCURRENT_REQUESTS=20 QUANTITY=1 npm run test:multi-instance:with-lock
 ```
 
-Neu muon xem no-lock multi-instance:
-
-```powershell
-npx cross-env BASE_URLS=http://localhost:3000,http://localhost:3001 PRODUCT_ID=<productId> INITIAL_STOCK=1 CONCURRENT_REQUESTS=20 QUANTITY=1 npm run test:multi-instance:no-lock
-```
-
-Ky vong multi-instance with-lock:
+Ky vong:
 
 - request duoc chia qua ca `http://localhost:3000` va `http://localhost:3001`
 - logs co `server-A` va `server-B`
@@ -181,7 +174,7 @@ Ky vong multi-instance with-lock:
 - `finalStock = 0`
 - `dataConsistent = YES`
 
-## Step 8: Show Evidence
+## Step 10: Show Evidence
 
 Nhung diem nen show cho giang vien:
 
@@ -189,35 +182,19 @@ Nhung diem nen show cho giang vien:
 - terminal output cua `evidence:with-lock`
 - compare report Markdown trong `reports/`
 - multi-instance report Markdown trong `reports/`
-- `GET /admin/metrics`
-- `GET /admin/attempt-logs?productId=<productId>`
+- `GET /api/admin/metrics`
+- `GET /api/admin/attempt-logs?productId=<productId>`
 
-Admin metrics:
+Vi du:
 
 ```powershell
-curl.exe "http://localhost:4000/admin/metrics?productId=<productId>&initialStock=1&quantity=1&includeServerBreakdown=true"
+curl.exe "http://localhost:4000/api/admin/metrics?productId=<productId>&initialStock=1&quantity=1&includeServerBreakdown=true" -H "Authorization: Bearer $token"
 ```
 
-## Step 9: Explain Conclusion
+## Step 11: Explain Conclusion
 
 Noi ngan gon:
 
 1. no-lock doc stock cu truoc delay, nen nhieu request co the dua tren stale stock
 2. with-lock dung Redis distributed lock theo `productId`, nen critical section duoc serialize
 3. multi-instance van dung vi server-A va server-B cung tranh cung mot Redis lock key
-
-## Sample Output Notes
-
-Day la sample minh hoa, khong phai luc nao no-lock cung reproduce y het:
-
-- No-lock:
-  - `oversellDetected` co the la `YES` neu reproduce
-  - hoac report se noi `RACE_CONDITION_NOT_REPRODUCED` neu run nay chua trung race
-- With-lock:
-  - `successOrders: 1`
-  - `finalStock: 0`
-  - `dataConsistent: YES`
-- Multi-instance:
-  - `requestDistribution` co ca server A va B
-  - `serverLogDistribution` co ca `server-A` va `server-B`
-  - `dataConsistent: YES`

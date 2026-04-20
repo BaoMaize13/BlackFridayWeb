@@ -1,27 +1,17 @@
-import { coerceArray, normalizeSettings } from "../api/adapters";
-import { apiClient } from "../api/apiClient";
-import { endpoints } from "../api/endpoints";
+import { throwUnsupportedFeature } from "../api/unsupported";
 
 export async function getSettings() {
-  const payload = await apiClient.request(endpoints.settings.current);
-  return normalizeSettings(payload);
+  return throwUnsupportedFeature("Settings APIs");
 }
 
 export async function updateSettings(settings) {
-  const payload = await apiClient.request(endpoints.settings.current, {
-    method: "POST",
-    body: settings
-  });
-  return normalizeSettings(payload);
+  return throwUnsupportedFeature("Settings update APIs");
 }
 
 export async function getSettingsHistory() {
-  const payload = await apiClient.request(endpoints.settings.history);
-  return coerceArray(payload);
+  return throwUnsupportedFeature("Settings history APIs");
 }
 
 export async function triggerSystemAction(action) {
-  return apiClient.request(endpoints.settings.action(action), {
-    method: "POST"
-  });
+  return throwUnsupportedFeature("System action APIs");
 }

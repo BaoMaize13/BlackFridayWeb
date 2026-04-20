@@ -31,10 +31,33 @@ function buildSqlitePoolConfig() {
     max: 1,
     afterCreate(connection, done) {
       connection.serialize(() => {
-        connection.run("PRAGMA foreign_keys = ON;");
-        connection.run(`PRAGMA busy_timeout = ${databaseConfig.busyTimeoutMs};`, (error) => {
-          done(error, connection);
-        });
+        const finish = (error) => done(error, connection);
+        const applyBusyTimeout = () =>
+          connection.run(`PRAGMA busy_timeout = ${databaseConfig.busyTimeoutMs};`, finish);
+        const applyForeignKeys = () =>
+          connection.run("PRAGMA foreign_keys = ON;", (error) => {
+            if (error) {
+              finish(error);
+              return;
+            }
+
+            applyBusyTimeout();
+          });
+
+        if (databaseConfig.filename && databaseConfig.filename !== ":memory:") {
+          connection.run("PRAGMA journal_mode = WAL;", (error) => {
+            if (error) {
+              finish(error);
+              return;
+            }
+
+            applyForeignKeys();
+          });
+
+          return;
+        }
+
+        applyForeignKeys();
       });
     }
   };

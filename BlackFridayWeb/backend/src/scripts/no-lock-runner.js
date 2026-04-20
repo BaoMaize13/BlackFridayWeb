@@ -1,10 +1,12 @@
 const { performance } = require("node:perf_hooks");
 
 const { ORDER_STATUSES, PURCHASE_LOG_ACTIONS } = require("../constants/domain");
-const {
-  aggregateCounts,
-  extractSettledApiData,
-  formatBooleanForOutput,
+  const {
+    aggregateCounts,
+    authenticateAdmin,
+    buildAuthorizationHeaders,
+    extractSettledApiData,
+    formatBooleanForOutput,
   padNumber,
   parseArguments,
   parseBoolean,
@@ -19,6 +21,8 @@ const DEFAULT_CONFIG = Object.freeze({
   baseUrl: "http://127.0.0.1:4000",
   concurrentRequests: 20,
   initialStock: 1,
+  adminEmail: "admin@example.com",
+  adminPassword: "password",
   quantity: 1,
   requestPrefix: "no-lock-test",
   saveReport: true,
@@ -49,6 +53,8 @@ function buildNoLockScriptConfig(argv = process.argv.slice(2), env = process.env
   try {
     return {
       ...defaults,
+      adminEmail: argumentsMap.adminEmail || env.ADMIN_EMAIL || env.AUTH_EMAIL || defaults.adminEmail,
+      adminPassword: argumentsMap.adminPassword || env.ADMIN_PASSWORD || env.AUTH_PASSWORD || defaults.adminPassword,
       baseUrl: new URL(baseUrl).toString(),
       concurrentRequests: parsePositiveInteger(
         argumentsMap.requests || argumentsMap.concurrentRequests || env.CONCURRENT_REQUESTS || defaults.concurrentRequests,
@@ -79,23 +85,25 @@ async function ensureBackendIsReady(config) {
   return unwrapApiSuccess("GET /health", response);
 }
 
-async function fetchProductById(config, productId) {
-  const response = await requestJson(config.baseUrl, "GET", `/admin/products/${productId}`, {
+async function fetchProductById(config, adminToken, productId) {
+  const response = await requestJson(config.baseUrl, "GET", `/api/admin/products/${productId}`, {
+    headers: buildAuthorizationHeaders(adminToken),
     timeoutMs: config.timeoutMs
   });
 
-  return unwrapApiSuccess(`GET /admin/products/${productId}`, response);
+  return unwrapApiSuccess(`GET /api/admin/products/${productId}`, response);
 }
 
-async function resolveTargetProduct(config) {
+async function resolveTargetProduct(config, adminToken) {
   if (config.productId) {
-    return fetchProductById(config, config.productId);
+    return fetchProductById(config, adminToken, config.productId);
   }
 
-  const response = await requestJson(config.baseUrl, "GET", "/admin/products", {
+  const response = await requestJson(config.baseUrl, "GET", "/api/admin/products", {
+    headers: buildAuthorizationHeaders(adminToken),
     timeoutMs: config.timeoutMs
   });
-  const products = unwrapApiSuccess("GET /admin/products", response);
+  const products = unwrapApiSuccess("GET /api/admin/products", response);
 
   if (!Array.isArray(products) || products.length === 0) {
     throw new Error("No products found. Create or seed at least one product before running the no-lock test.");
@@ -110,20 +118,20 @@ async function resolveTargetProduct(config) {
   })[0];
 }
 
-async function resetProductForTest(config, productId) {
-  const response = await requestJson(config.baseUrl, "POST", `/admin/products/${productId}/reset`, {
+async function resetProductForTest(config, adminToken, productId) {
+  const response = await requestJson(config.baseUrl, "POST", `/api/admin/products/${productId}/reset`, {
     body: {
       clearLogs: true,
       clearOrders: true,
       stock: config.initialStock
     },
-    headers: {
+    headers: buildAuthorizationHeaders(adminToken, {
       "x-request-id": `${config.requestPrefix}-reset`
-    },
+    }),
     timeoutMs: config.timeoutMs
   });
 
-  return unwrapApiSuccess(`POST /admin/products/${productId}/reset`, response);
+  return unwrapApiSuccess(`POST /api/admin/products/${productId}/reset`, response);
 }
 
 function buildPurchasePayload(config, productId, requestIndex) {
@@ -143,7 +151,7 @@ async function executePurchaseRequest(config, productId, requestIndex) {
   const startedAtMs = performance.now();
 
   try {
-    const response = await requestJson(config.baseUrl, "POST", "/purchase/no-lock", {
+    const response = await requestJson(config.baseUrl, "POST", "/api/purchase/no-lock", {
       body: payload,
       headers: {
         "x-request-id": payload.requestId
@@ -188,28 +196,34 @@ async function executePurchaseRequest(config, productId, requestIndex) {
   }
 }
 
-async function fetchPostTestData(config, productId) {
+async function fetchPostTestData(config, adminToken, productId) {
   const fetchTasks = await Promise.allSettled([
-    requestJson(config.baseUrl, "GET", `/admin/products/${productId}`, { timeoutMs: config.timeoutMs }),
-    requestJson(config.baseUrl, "GET", "/admin/orders", {
+    requestJson(config.baseUrl, "GET", `/api/admin/products/${productId}`, {
+      headers: buildAuthorizationHeaders(adminToken),
+      timeoutMs: config.timeoutMs
+    }),
+    requestJson(config.baseUrl, "GET", "/api/admin/orders", {
+      headers: buildAuthorizationHeaders(adminToken),
       query: { productId },
       timeoutMs: config.timeoutMs
     }),
-    requestJson(config.baseUrl, "GET", "/admin/attempt-logs", {
+    requestJson(config.baseUrl, "GET", "/api/admin/attempt-logs", {
+      headers: buildAuthorizationHeaders(adminToken),
       query: { productId },
       timeoutMs: config.timeoutMs
     }),
-    requestJson(config.baseUrl, "GET", "/admin/stats", {
+    requestJson(config.baseUrl, "GET", "/api/admin/stats", {
+      headers: buildAuthorizationHeaders(adminToken),
       query: { productId },
       timeoutMs: config.timeoutMs
     })
   ]);
 
   return {
-    afterProductSnapshot: extractSettledApiData(fetchTasks[0], `GET /admin/products/${productId}`),
-    attemptLogs: extractSettledApiData(fetchTasks[2], `GET /admin/attempt-logs?productId=${productId}`),
-    orders: extractSettledApiData(fetchTasks[1], `GET /admin/orders?productId=${productId}`),
-    stats: extractSettledApiData(fetchTasks[3], `GET /admin/stats?productId=${productId}`)
+    afterProductSnapshot: extractSettledApiData(fetchTasks[0], `GET /api/admin/products/${productId}`),
+    attemptLogs: extractSettledApiData(fetchTasks[2], `GET /api/admin/attempt-logs?productId=${productId}`),
+    orders: extractSettledApiData(fetchTasks[1], `GET /api/admin/orders?productId=${productId}`),
+    stats: extractSettledApiData(fetchTasks[3], `GET /api/admin/stats?productId=${productId}`)
   };
 }
 
@@ -468,7 +482,8 @@ async function runNoLockScenario(config, options = {}) {
 
   const startedAt = new Date().toISOString();
   const healthData = await ensureBackendIsReady(config);
-  const preResetProductSnapshot = await resolveTargetProduct(config);
+  const adminSession = await authenticateAdmin(config.baseUrl, config);
+  const preResetProductSnapshot = await resolveTargetProduct(config, adminSession.token);
 
   if (printProgress) {
     console.log(
@@ -476,8 +491,8 @@ async function runNoLockScenario(config, options = {}) {
     );
   }
 
-  const resetResult = await resetProductForTest(config, preResetProductSnapshot.id);
-  const beforeProductSnapshot = await fetchProductById(config, preResetProductSnapshot.id);
+  const resetResult = await resetProductForTest(config, adminSession.token, preResetProductSnapshot.id);
+  const beforeProductSnapshot = await fetchProductById(config, adminSession.token, preResetProductSnapshot.id);
 
   if (printProgress) {
     console.log(
@@ -493,7 +508,7 @@ async function runNoLockScenario(config, options = {}) {
   );
   const totalBatchDurationMs = toRoundedMs(performance.now() - batchStartedAtMs);
 
-  const postTestData = await fetchPostTestData(config, preResetProductSnapshot.id);
+  const postTestData = await fetchPostTestData(config, adminSession.token, preResetProductSnapshot.id);
   const afterProductSnapshot = postTestData.afterProductSnapshot.available ? postTestData.afterProductSnapshot.data : null;
   const orders = postTestData.orders.available ? postTestData.orders.data : [];
   const attemptLogs = postTestData.attemptLogs.available ? postTestData.attemptLogs.data : [];

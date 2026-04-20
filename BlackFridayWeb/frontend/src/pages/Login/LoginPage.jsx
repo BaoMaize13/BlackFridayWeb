@@ -16,7 +16,7 @@ function LoginPage() {
   const location = useLocation();
   const { login } = useAuth();
   const { showToast } = useToast();
-  const [form, setForm] = useState({ username: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -73,10 +73,10 @@ function LoginPage() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
-        <Field label="Username or Email">
+        <Field label="Email">
           <Input
-            value={form.username}
-            onChange={handleChange("username")}
+            value={form.email}
+            onChange={handleChange("email")}
             placeholder="admin@example.com"
             autoComplete="username"
             required

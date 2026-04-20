@@ -1,7 +1,7 @@
 # No-Lock Evidence Guide
 
 ## Purpose
-This guide explains how to generate evidence showing that the `POST /purchase/no-lock` flow is unsafe under concurrent requests.
+This guide explains how to generate evidence showing that the `POST /api/purchase/no-lock` flow is unsafe under concurrent requests.
 
 ## Prerequisites
 1. Start the backend server.
@@ -50,7 +50,7 @@ npm run evidence:no-lock
    - stock = `INITIAL_STOCK`
    - old orders cleared
    - old attempt logs cleared
-4. Sends concurrent requests to `/purchase/no-lock`.
+4. Sends concurrent requests to `/api/purchase/no-lock`.
 5. Fetches product, orders, attempt logs, and stats after the run.
 6. Saves:
    - JSON evidence report

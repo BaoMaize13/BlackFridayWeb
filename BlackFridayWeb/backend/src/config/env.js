@@ -31,6 +31,8 @@ function loadEnvironment() {
       LOCK_RETRY_INTERVAL_MS: num({ default: 50 }),
       LOCK_WAIT_TIMEOUT_MS: num({ default: 3000 }),
       LOCK_KEY_PREFIX: str({ default: "lock" }),
+      JWT_SECRET: str({ default: "dev-jwt-secret-change-me" }),
+      JWT_EXPIRES_IN: str({ default: "1d" }),
       LOG_LEVEL: str({ choices: allowedLogLevels, default: "info" }),
       LOG_PRETTY: bool({ default: process.env.NODE_ENV !== "production" })
     });
@@ -52,6 +54,13 @@ function loadEnvironment() {
 
     if (!validatedEnv.LOCK_KEY_PREFIX.trim()) {
       throw new Error("LOCK_KEY_PREFIX must not be empty");
+    }
+
+    if (
+      validatedEnv.NODE_ENV === "production" &&
+      (!validatedEnv.JWT_SECRET.trim() || validatedEnv.JWT_SECRET === "dev-jwt-secret-change-me")
+    ) {
+      throw new Error("JWT_SECRET must be overridden with a strong secret in production");
     }
 
     return Object.freeze({ ...validatedEnv });

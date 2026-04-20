@@ -3,7 +3,8 @@ export class AppError extends Error {
     super(message);
     this.name = "AppError";
     this.status = options.status ?? null;
-    this.code = options.code ?? null;
+    this.code = options.code ?? options.errorCode ?? null;
+    this.errorCode = options.errorCode ?? options.code ?? null;
     this.details = options.details ?? null;
   }
 }

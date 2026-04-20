@@ -1,7 +1,7 @@
 # Distributed Lock Design
 
 ## 1. Problem To Solve
-The current `POST /purchase/no-lock` flow is intentionally unsafe.
+The current `POST /api/purchase/no-lock` flow is intentionally unsafe.
 
 Multiple requests can:
 - read the same old stock value
@@ -91,7 +91,7 @@ Design rule:
 - keep product identifier at the end for easy inspection
 
 ## 7. Critical Section
-The critical section for the future `purchase/with-lock` flow must include:
+The critical section for the future `/api/purchase/with-lock` flow must include:
 - read latest product stock from database
 - validate product existence
 - validate stock availability
@@ -336,5 +336,5 @@ After Phase 9:
 - lock events and error codes are prepared
 - key builder and token generator are prepared
 - skeleton `lock.service.js` exists for Phase 10
-- `purchase/no-lock` is unchanged
-- no `purchase/with-lock` endpoint exists yet
+- `/api/purchase/no-lock` is unchanged
+- no `/api/purchase/with-lock` endpoint exists yet

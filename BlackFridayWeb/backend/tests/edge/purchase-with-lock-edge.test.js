@@ -137,7 +137,7 @@ test("with-lock validation edge cases return VALIDATION_ERROR and do not acquire
     ];
 
     for (const invalidCase of invalidCases) {
-      const response = await client.post("/purchase/with-lock").send(invalidCase.body).expect(422);
+      const response = await client.post("/api/purchase/with-lock").send(invalidCase.body).expect(422);
 
       assert.equal(response.body.success, false);
       assert.equal(response.body.error.code, ERROR_CODES.VALIDATION_ERROR);
@@ -164,7 +164,7 @@ test("with-lock purchase returns OUT_OF_STOCK when quantity is greater than curr
   const product = await productRepository.findProductByCode("BF-LOW-STOCK-001");
 
   const response = await client
-    .post("/purchase/with-lock")
+    .post("/api/purchase/with-lock")
     .send(
       createPurchasePayload({
         productId: product.id,
@@ -199,7 +199,7 @@ test("with-lock purchase supports quantity > 1 when stock is sufficient", async 
   const product = await productRepository.findProductByCode("BF-MEDIUM-STOCK-010");
 
   const response = await client
-    .post("/purchase/with-lock")
+    .post("/api/purchase/with-lock")
     .send(
       createPurchasePayload({
         productId: product.id,
@@ -230,7 +230,7 @@ test("with-lock purchase returns PRODUCT_NOT_FOUND and releases the product lock
   const lockKey = buildProductLockKey(missingProductId);
 
   const response = await client
-    .post("/purchase/with-lock")
+    .post("/api/purchase/with-lock")
     .send(
       createPurchasePayload({
         productId: missingProductId,
@@ -290,7 +290,7 @@ test("with-lock purchase returns LOCK_TIMEOUT when the product lock is already h
   try {
     const requestId = "with-lock-timeout-secondary-request";
     const response = await client
-      .post("/purchase/with-lock")
+      .post("/api/purchase/with-lock")
       .send(
         createPurchasePayload({
           productId: product.id,
@@ -341,8 +341,8 @@ test("concurrent duplicate requestId under with-lock creates at most one success
   });
 
   const responses = await Promise.all([
-    client.post("/purchase/with-lock").set("x-request-id", payload.requestId).send(payload),
-    client.post("/purchase/with-lock").set("x-request-id", payload.requestId).send(payload)
+    client.post("/api/purchase/with-lock").set("x-request-id", payload.requestId).send(payload),
+    client.post("/api/purchase/with-lock").set("x-request-id", payload.requestId).send(payload)
   ]);
 
   const orders = await orderRepository.listOrders({
@@ -387,7 +387,7 @@ test("DB error during success order creation rolls back stock update and does no
   try {
     const requestId = "with-lock-db-error-001";
     const response = await client
-      .post("/purchase/with-lock")
+      .post("/api/purchase/with-lock")
       .send(
         createPurchasePayload({
           productId: product.id,

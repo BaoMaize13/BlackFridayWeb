@@ -111,13 +111,15 @@ Trieu chung:
 Lay danh sach san pham:
 
 ```powershell
-curl.exe "http://localhost:4000/admin/products"
+$login = Invoke-RestMethod -Method POST -Uri "http://localhost:4000/api/auth/login" -ContentType "application/json" -Body '{"email":"admin@example.com","password":"password"}'
+$token = $login.data.token
+curl.exe "http://localhost:4000/api/admin/products" -H "Authorization: Bearer $token"
 ```
 
 Hoac tao san pham moi:
 
 ```powershell
-curl.exe -X POST "http://localhost:4000/admin/products" -H "Content-Type: application/json" -d "{\"code\":\"DEMO-TROUBLE-001\",\"name\":\"Demo Product\",\"price\":100000,\"stock\":10}"
+curl.exe -X POST "http://localhost:4000/api/admin/products" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "{\"code\":\"DEMO-TROUBLE-001\",\"name\":\"Demo Product\",\"price\":100000,\"stock\":10}"
 ```
 
 ## No-Lock Did Not Reproduce Oversell

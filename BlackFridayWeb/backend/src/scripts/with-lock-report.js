@@ -59,7 +59,7 @@ ${buildMarkdownTable([
   },
   {
     Field: "Endpoint",
-    Value: "/purchase/with-lock"
+    Value: "/api/purchase/with-lock"
   }
 ])}
 

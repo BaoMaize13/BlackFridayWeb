@@ -40,6 +40,14 @@ test("GET /health returns service metadata and standardized response envelope", 
   assert.equal(response.headers["x-request-id"], "phase-13-health-check");
 });
 
+test("GET /api/health returns the same standardized envelope under the /api prefix", async () => {
+  const app = createApp();
+  const response = await request(app).get("/api/health").expect(200);
+
+  assert.equal(response.body.success, true);
+  assert.equal(response.body.data.status, "ok");
+});
+
 test("unknown routes return standardized 404 errors", async () => {
   const app = createApp();
   const response = await request(app).get("/unknown-route").expect(404);

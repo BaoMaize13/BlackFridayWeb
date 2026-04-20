@@ -1,9 +1,11 @@
 const { performance } = require("node:perf_hooks");
 
 const { ORDER_STATUSES, PURCHASE_LOG_ACTIONS } = require("../constants/domain");
-const {
-  aggregateCounts,
-  extractSettledApiData,
+  const {
+    aggregateCounts,
+    authenticateAdmin,
+    buildAuthorizationHeaders,
+    extractSettledApiData,
   formatBooleanForOutput,
   padNumber,
   parseArguments,
@@ -18,7 +20,7 @@ const {
 
 const MODE_SETTINGS = Object.freeze({
   "no-lock": Object.freeze({
-    endpointPath: "/purchase/no-lock",
+    endpointPath: "/api/purchase/no-lock",
     importantActions: [
       PURCHASE_LOG_ACTIONS.PURCHASE_NO_LOCK_STARTED,
       PURCHASE_LOG_ACTIONS.PRODUCT_READ,
@@ -37,7 +39,7 @@ const MODE_SETTINGS = Object.freeze({
     terminalSuccessAction: PURCHASE_LOG_ACTIONS.PURCHASE_NO_LOCK_SUCCESS
   }),
   "with-lock": Object.freeze({
-    endpointPath: "/purchase/with-lock",
+    endpointPath: "/api/purchase/with-lock",
     importantActions: [
       PURCHASE_LOG_ACTIONS.PURCHASE_WITH_LOCK_STARTED,
       PURCHASE_LOG_ACTIONS.LOCK_ACQUIRED_FOR_PURCHASE,
@@ -66,6 +68,8 @@ const DEFAULT_CONFIG = Object.freeze({
   ],
   concurrentRequests: 20,
   initialStock: 1,
+  adminEmail: "admin@example.com",
+  adminPassword: "password",
   mode: "with-lock",
   quantity: 1,
   reportDir: "reports",
@@ -129,6 +133,8 @@ function parseScriptConfig(argv = process.argv.slice(2), env = process.env, over
   try {
     return {
       ...defaults,
+      adminEmail: argumentsMap.adminEmail || env.ADMIN_EMAIL || env.AUTH_EMAIL || defaults.adminEmail,
+      adminPassword: argumentsMap.adminPassword || env.ADMIN_PASSWORD || env.AUTH_PASSWORD || defaults.adminPassword,
       baseUrls,
       concurrentRequests: parsePositiveInteger(
         argumentsMap.requests || argumentsMap.concurrentRequests || env.CONCURRENT_REQUESTS || defaults.concurrentRequests,
@@ -225,23 +231,25 @@ async function probeBaseUrls(config) {
   };
 }
 
-async function fetchProductById(baseUrl, productId, timeoutMs) {
-  const response = await requestJson(baseUrl, "GET", `/admin/products/${productId}`, {
+async function fetchProductById(baseUrl, adminToken, productId, timeoutMs) {
+  const response = await requestJson(baseUrl, "GET", `/api/admin/products/${productId}`, {
+    headers: buildAuthorizationHeaders(adminToken),
     timeoutMs
   });
 
-  return unwrapApiSuccess(`GET ${new URL(`/admin/products/${productId}`, baseUrl).toString()}`, response);
+  return unwrapApiSuccess(`GET ${new URL(`/api/admin/products/${productId}`, baseUrl).toString()}`, response);
 }
 
-async function resolveTargetProduct(config, controlBaseUrl) {
+async function resolveTargetProduct(config, controlBaseUrl, adminToken) {
   if (config.productId) {
-    return fetchProductById(controlBaseUrl, config.productId, config.timeoutMs);
+    return fetchProductById(controlBaseUrl, adminToken, config.productId, config.timeoutMs);
   }
 
-  const response = await requestJson(controlBaseUrl, "GET", "/admin/products", {
+  const response = await requestJson(controlBaseUrl, "GET", "/api/admin/products", {
+    headers: buildAuthorizationHeaders(adminToken),
     timeoutMs: config.timeoutMs
   });
-  const products = unwrapApiSuccess(`GET ${new URL("/admin/products", controlBaseUrl).toString()}`, response);
+  const products = unwrapApiSuccess(`GET ${new URL("/api/admin/products", controlBaseUrl).toString()}`, response);
 
   if (!Array.isArray(products) || products.length === 0) {
     throw new Error("No products found. Create or seed at least one product before running the multi-instance test.");
@@ -256,20 +264,20 @@ async function resolveTargetProduct(config, controlBaseUrl) {
   })[0];
 }
 
-async function resetProductForTest(config, controlBaseUrl, productId) {
-  const response = await requestJson(controlBaseUrl, "POST", `/admin/products/${productId}/reset`, {
+async function resetProductForTest(config, controlBaseUrl, adminToken, productId) {
+  const response = await requestJson(controlBaseUrl, "POST", `/api/admin/products/${productId}/reset`, {
     body: {
       clearLogs: true,
       clearOrders: true,
       stock: config.initialStock
     },
-    headers: {
+    headers: buildAuthorizationHeaders(adminToken, {
       "x-request-id": `${config.requestPrefix}-reset`
-    },
+    }),
     timeoutMs: config.timeoutMs
   });
 
-  return unwrapApiSuccess(`POST ${new URL(`/admin/products/${productId}/reset`, controlBaseUrl).toString()}`, response);
+  return unwrapApiSuccess(`POST ${new URL(`/api/admin/products/${productId}/reset`, controlBaseUrl).toString()}`, response);
 }
 
 function buildPurchasePayload(config, productId, requestIndex) {
@@ -347,18 +355,24 @@ async function executePurchaseRequest(config, productId, requestIndex) {
   }
 }
 
-async function fetchPostTestData(config, controlBaseUrl, productId) {
+async function fetchPostTestData(config, controlBaseUrl, adminToken, productId) {
   const fetchTasks = await Promise.allSettled([
-    requestJson(controlBaseUrl, "GET", `/admin/products/${productId}`, { timeoutMs: config.timeoutMs }),
-    requestJson(controlBaseUrl, "GET", "/admin/orders", {
+    requestJson(controlBaseUrl, "GET", `/api/admin/products/${productId}`, {
+      headers: buildAuthorizationHeaders(adminToken),
+      timeoutMs: config.timeoutMs
+    }),
+    requestJson(controlBaseUrl, "GET", "/api/admin/orders", {
+      headers: buildAuthorizationHeaders(adminToken),
       query: { productId },
       timeoutMs: config.timeoutMs
     }),
-    requestJson(controlBaseUrl, "GET", "/admin/attempt-logs", {
+    requestJson(controlBaseUrl, "GET", "/api/admin/attempt-logs", {
+      headers: buildAuthorizationHeaders(adminToken),
       query: { productId },
       timeoutMs: config.timeoutMs
     }),
-    requestJson(controlBaseUrl, "GET", "/admin/stats", {
+    requestJson(controlBaseUrl, "GET", "/api/admin/stats", {
+      headers: buildAuthorizationHeaders(adminToken),
       query: { productId },
       timeoutMs: config.timeoutMs
     })
@@ -367,19 +381,19 @@ async function fetchPostTestData(config, controlBaseUrl, productId) {
   return {
     afterProductSnapshot: extractSettledApiData(
       fetchTasks[0],
-      `GET ${new URL(`/admin/products/${productId}`, controlBaseUrl).toString()}`
+      `GET ${new URL(`/api/admin/products/${productId}`, controlBaseUrl).toString()}`
     ),
     attemptLogs: extractSettledApiData(
       fetchTasks[2],
-      `GET ${new URL(`/admin/attempt-logs?productId=${productId}`, controlBaseUrl).toString()}`
+      `GET ${new URL(`/api/admin/attempt-logs?productId=${productId}`, controlBaseUrl).toString()}`
     ),
     orders: extractSettledApiData(
       fetchTasks[1],
-      `GET ${new URL(`/admin/orders?productId=${productId}`, controlBaseUrl).toString()}`
+      `GET ${new URL(`/api/admin/orders?productId=${productId}`, controlBaseUrl).toString()}`
     ),
     stats: extractSettledApiData(
       fetchTasks[3],
-      `GET ${new URL(`/admin/stats?productId=${productId}`, controlBaseUrl).toString()}`
+      `GET ${new URL(`/api/admin/stats?productId=${productId}`, controlBaseUrl).toString()}`
     )
   };
 }
@@ -797,12 +811,13 @@ async function runMultiInstanceScenario(config, options = {}) {
 
   const startedAt = new Date().toISOString();
   const probeResult = await probeBaseUrls(config);
+  const adminSession = await authenticateAdmin(probeResult.controlBaseUrl, config);
 
   if (printProgress) {
     console.log(`Control base URL selected for admin operations: ${probeResult.controlBaseUrl}`);
   }
 
-  const preResetProductSnapshot = await resolveTargetProduct(config, probeResult.controlBaseUrl);
+  const preResetProductSnapshot = await resolveTargetProduct(config, probeResult.controlBaseUrl, adminSession.token);
 
   if (printProgress) {
     console.log(
@@ -810,8 +825,13 @@ async function runMultiInstanceScenario(config, options = {}) {
     );
   }
 
-  const resetResult = await resetProductForTest(config, probeResult.controlBaseUrl, preResetProductSnapshot.id);
-  const beforeProductSnapshot = await fetchProductById(probeResult.controlBaseUrl, preResetProductSnapshot.id, config.timeoutMs);
+  const resetResult = await resetProductForTest(config, probeResult.controlBaseUrl, adminSession.token, preResetProductSnapshot.id);
+  const beforeProductSnapshot = await fetchProductById(
+    probeResult.controlBaseUrl,
+    adminSession.token,
+    preResetProductSnapshot.id,
+    config.timeoutMs
+  );
 
   if (printProgress) {
     console.log(
@@ -827,7 +847,12 @@ async function runMultiInstanceScenario(config, options = {}) {
   );
   const totalBatchDurationMs = toRoundedMs(performance.now() - batchStartedAtMs);
 
-  const postTestData = await fetchPostTestData(config, probeResult.controlBaseUrl, preResetProductSnapshot.id);
+  const postTestData = await fetchPostTestData(
+    config,
+    probeResult.controlBaseUrl,
+    adminSession.token,
+    preResetProductSnapshot.id
+  );
   const afterProductSnapshot = postTestData.afterProductSnapshot.available ? postTestData.afterProductSnapshot.data : null;
   const orders = postTestData.orders.available ? postTestData.orders.data : [];
   const attemptLogs = postTestData.attemptLogs.available ? postTestData.attemptLogs.data : [];

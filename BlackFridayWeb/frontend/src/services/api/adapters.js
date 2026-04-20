@@ -42,6 +42,21 @@ export function coercePagination(payload, fallbackCount = 0) {
 
 export function normalizeHealth(payload) {
   const data = coerceObject(payload);
+  const database = coerceObject(data.services?.database);
+  const redis = coerceObject(data.services?.redis);
+
+  function normalizeService(service) {
+    return {
+      ...service,
+      status:
+        service.connected === true
+          ? "ACTIVE"
+          : service.configured === true
+            ? "DEGRADED"
+            : "OFFLINE"
+    };
+  }
+
   return {
     status: data.status ?? "unknown",
     appName: data.appName ?? null,
@@ -49,7 +64,10 @@ export function normalizeHealth(payload) {
     timestamp: data.timestamp ?? null,
     serverId: data.server?.id ?? data.serverId ?? null,
     serverPort: data.server?.port ?? data.port ?? null,
-    services: data.services ?? {}
+    services: {
+      database: normalizeService(database),
+      redis: normalizeService(redis)
+    }
   };
 }
 
@@ -130,13 +148,40 @@ export function normalizeLog(payload, productsById = new Map()) {
 
 export function normalizePurchaseResponse(payload) {
   const data = coerceObject(payload);
+  const order = coerceObject(data.order);
+  const stock = coerceObject(data.stock);
+  const product = coerceObject(data.product);
+  const updatedProduct = coerceObject(data.updatedProduct);
+
   return {
-    success: Boolean(data.success ?? data.ok ?? false),
-    message: data.message ?? "Purchase request completed.",
-    orderId: data.orderId ?? data.order_id ?? null,
-    requestId: data.requestId ?? data.request_id ?? null,
-    quantity: Number(data.quantity ?? data.qty ?? 0) || null,
-    newStock: data.newStock ?? data.stock ?? data.stock_after ?? null,
+    success:
+      order.status === "SUCCESS" ||
+      data.result === "SUCCESS" ||
+      Boolean(data.isDuplicate) ||
+      Boolean(product.id || updatedProduct.id || data.delayMs !== undefined),
+    message: payload?.message ?? data.message ?? "Purchase request completed.",
+    orderId: order.id ?? data.orderId ?? data.order_id ?? null,
+    requestId: data.requestId ?? data.request_id ?? order.requestId ?? null,
+    quantity: Number(order.quantity ?? data.quantity ?? data.qty ?? 0) || null,
+    newStock:
+      data.newStock ??
+      data.stockAfter ??
+      stock.after ??
+      product.stock ??
+      updatedProduct.stock ??
+      data.stock ??
+      data.stock_after ??
+      null,
+    order: order.id ? normalizeOrder(order) : null,
+    status: order.status ?? data.result ?? null,
+    stockBefore: data.stockBefore ?? stock.before ?? null,
+    stockAfter:
+      data.stockAfter ??
+      stock.after ??
+      product.stock ??
+      updatedProduct.stock ??
+      null,
+    isDuplicate: Boolean(data.isDuplicate),
     raw: data
   };
 }

@@ -80,6 +80,11 @@ function InventoryPage() {
   };
 
   const handleReset = async () => {
+    if (!selectedProductId) {
+      setFormError("Choose a product before resetting stock.");
+      return;
+    }
+
     const accepted = await confirm({
       title: "Reset inventory stock",
       description:
@@ -93,7 +98,7 @@ function InventoryPage() {
     setFormError("");
 
     try {
-      await resetInventoryStock(Number(resetValue));
+      await resetInventoryStock(selectedProductId, Number(resetValue));
       showToast({
         tone: "success",
         title: "Reset request sent",
@@ -178,6 +183,16 @@ function InventoryPage() {
 
           <SectionCard title="Reset Inventory" description="Trigger the backend reset endpoint only after confirmation.">
             <div style={{ display: "grid", gap: "0.9rem" }}>
+              <Field label="Product">
+                <Select value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)}>
+                  <option value="">Choose a product</option>
+                  {(query.data?.inventory ?? []).map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
               <Field label="Reset Value">
                 <Input type="number" min="0" value={resetValue} onChange={(event) => setResetValue(event.target.value)} />
               </Field>
