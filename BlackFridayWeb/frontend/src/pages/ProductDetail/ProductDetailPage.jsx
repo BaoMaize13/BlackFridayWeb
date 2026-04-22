@@ -54,7 +54,16 @@ function ProductDetailPage() {
     return (
       <div style={{ display: "grid", gap: "1rem" }}>
         <PageHeader onRefresh={() => query.execute()} />
-        <ErrorState title="Product detail unavailable" description={query.error} action={<Button tone="secondary" onClick={() => query.execute()}>Retry</Button>} />
+        <ErrorState title="Chi tiết sản phẩm tạm thời chưa khả dụng" description={query.error} action={<Button tone="secondary" onClick={() => query.execute()}>Thử lại</Button>} />
+      </div>
+    );
+  }
+
+  if (!query.data) {
+    return (
+      <div style={{ display: "grid", gap: "1rem" }}>
+        <PageHeader onRefresh={() => query.execute()} refreshing={query.loading} />
+        <PageSkeleton />
       </div>
     );
   }
@@ -109,9 +118,9 @@ function ProductDetailPage() {
                 <div key={`${event.id}-${index}`} style={{ padding: "0.9rem 1rem", border: "1px solid var(--color-border)", borderRadius: "1rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
                     <div>
-                      <strong>{event.productName ?? event.action ?? "Product event"}</strong>
+                      <strong>{event.productName ?? event.action ?? "Sự kiện sản phẩm"}</strong>
                       <div style={{ color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
-                        {event.message ?? event.requestId ?? event.failureReason ?? "No extra detail"}
+                        {event.message ?? event.requestId ?? event.failureReason ?? "Chưa có thông tin bổ sung"}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
@@ -125,7 +134,7 @@ function ProductDetailPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="No activity for this product yet" description="Once orders or logs exist for this product, they will surface here automatically." />
+            <EmptyState title="Chưa có hoạt động cho sản phẩm này" description="Khi có order hoặc log liên quan, dữ liệu sẽ tự động hiển thị tại đây." />
           )}
         </SectionCard>
 

@@ -58,7 +58,7 @@ export function normalizeHealth(payload) {
   }
 
   return {
-    status: data.status ?? "unknown",
+    status: data.status ?? "DEGRADED",
     appName: data.appName ?? null,
     environment: data.environment ?? null,
     timestamp: data.timestamp ?? null,
@@ -79,7 +79,7 @@ export function normalizeProduct(payload) {
   return {
     id: item.id ?? item.productId ?? item.product_id ?? item.code ?? item.sku ?? null,
     code: item.code ?? item.sku ?? item.productCode ?? null,
-    name: item.name ?? item.productName ?? item.title ?? "Unknown product",
+    name: item.name ?? item.productName ?? item.title ?? "Sản phẩm chưa đặt tên",
     stock: Number.isNaN(stock) ? null : stock,
     price: Number.isNaN(price) ? null : price,
     version: item.version ?? item.revision ?? null,
@@ -102,10 +102,10 @@ export function normalizeOrder(payload, productsById = new Map()) {
       item.product_name ??
       item.product?.name ??
       relatedProduct?.name ??
-      "Unknown product",
+      "Sản phẩm chưa định danh",
     buyerRef: item.buyerRef ?? item.buyer_ref ?? item.userId ?? null,
     quantity: Number(item.quantity ?? item.qty ?? 0) || null,
-    status: item.status ?? item.result ?? "UNKNOWN",
+    status: item.status ?? item.result ?? "UNSPECIFIED",
     failureReason: item.failureReason ?? item.failure_reason ?? null,
     createdAt: item.createdAt ?? item.created_at ?? item.timestamp ?? null,
     updatedAt: item.updatedAt ?? item.updated_at ?? null
@@ -134,12 +134,12 @@ export function normalizeLog(payload, productsById = new Map()) {
       item.productName ??
       item.product_name ??
       relatedProduct?.name ??
-      "Unknown product",
+      "Sản phẩm chưa định danh",
     serverId: item.serverId ?? item.server_id ?? null,
     action: item.action ?? item.eventType ?? item.type ?? "INFO",
     result: item.result ?? null,
     level: deriveLogLevel(item),
-    message: item.message ?? item.description ?? item.detail ?? "No message provided.",
+    message: item.message ?? item.description ?? item.detail ?? "Chưa có nội dung log.",
     stockBefore: item.stockBefore ?? item.stock_before ?? null,
     stockAfter: item.stockAfter ?? item.stock_after ?? null,
     createdAt: item.createdAt ?? item.created_at ?? item.timestamp ?? null
@@ -159,7 +159,7 @@ export function normalizePurchaseResponse(payload) {
       data.result === "SUCCESS" ||
       Boolean(data.isDuplicate) ||
       Boolean(product.id || updatedProduct.id || data.delayMs !== undefined),
-    message: payload?.message ?? data.message ?? "Purchase request completed.",
+    message: payload?.message ?? data.message ?? "Yêu cầu mua hàng đã được xử lý.",
     orderId: order.id ?? data.orderId ?? data.order_id ?? null,
     requestId: data.requestId ?? data.request_id ?? order.requestId ?? null,
     quantity: Number(order.quantity ?? data.quantity ?? data.qty ?? 0) || null,
@@ -212,7 +212,7 @@ export function normalizeSimulationResult(payload) {
       return {
         id: item.id ?? item.threadId ?? item.thread_id ?? `${index + 1}`,
         thread: item.thread ?? item.threadId ?? item.thread_id ?? index + 1,
-        status: item.status ?? item.result ?? "UNKNOWN",
+        status: item.status ?? item.result ?? "UNSPECIFIED",
         quantity: item.quantity ?? item.qty ?? null,
         stockBefore: item.stockBefore ?? item.stock_before ?? null,
         stockAfter: item.stockAfter ?? item.stock_after ?? null,
@@ -225,7 +225,7 @@ export function normalizeSimulationResult(payload) {
       return {
         timestamp: item.timestamp ?? item.createdAt ?? item.created_at ?? null,
         level: item.level ?? item.result ?? "INFO",
-        message: item.message ?? item.detail ?? item.description ?? "No log message returned."
+        message: item.message ?? item.detail ?? item.description ?? "Hệ thống chưa trả về nội dung log."
       };
     }),
     charts: data.chart ?? data.charts ?? null
@@ -255,7 +255,7 @@ export function normalizeCompareSimulation(payload) {
   const metrics = coerceArray(data.metrics).map((entry) => {
     const item = coerceObject(entry);
     return {
-      label: item.label ?? item.metric ?? item.name ?? "Metric",
+      label: item.label ?? item.metric ?? item.name ?? "Chỉ số",
       noLock: item.noLock ?? item.no_lock ?? item.nolock ?? item.left ?? null,
       withLock: item.withLock ?? item.with_lock ?? item.withlock ?? item.right ?? null,
       verdict: item.verdict ?? item.recommendation ?? item.note ?? null
@@ -339,9 +339,9 @@ export function normalizeTestCase(payload) {
   const item = coerceObject(payload);
   return {
     id: item.id ?? item.testId ?? item.test_id ?? null,
-    name: item.name ?? item.testName ?? "Unnamed test case",
-    type: item.type ?? item.category ?? "UNKNOWN",
-    status: item.status ?? "UNKNOWN",
+    name: item.name ?? item.testName ?? "Test case chưa đặt tên",
+    type: item.type ?? item.category ?? "UNSPECIFIED",
+    status: item.status ?? "UNSPECIFIED",
     description: item.description ?? item.summary ?? "",
     lastExecutedAt: item.lastExecutedAt ?? item.last_executed_at ?? null,
     raw: item
@@ -354,7 +354,7 @@ export function normalizeTestReport(payload) {
     id: item.id ?? item.reportId ?? item.report_id ?? null,
     testCaseId: item.testCaseId ?? item.test_case_id ?? null,
     productId: item.productId ?? item.product_id ?? null,
-    result: item.result ?? item.status ?? "UNKNOWN",
+    result: item.result ?? item.status ?? "UNSPECIFIED",
     successRate: item.successRate ?? item.success_rate ?? null,
     createdAt: item.createdAt ?? item.created_at ?? item.generatedAt ?? null,
     summary: item.summary ?? item.details ?? null,

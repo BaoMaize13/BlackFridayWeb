@@ -5,7 +5,7 @@ export function ComparisonBars({ left, right }) {
 
   return (
     <div className="comparison-grid">
-      {[{ label: "Unlocked", items: left }, { label: "Protected", items: right }].map((group) => (
+      {[{ label: "No-lock", items: left }, { label: "With-lock", items: right }].map((group) => (
         <section key={group.label} className="section-card">
           <div className="section-card__header">
             <div>

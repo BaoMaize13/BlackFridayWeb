@@ -31,7 +31,7 @@ async function loadDashboardSnapshot() {
   );
 
   if (!fulfilled.length) {
-    throw new Error("No dashboard endpoints responded successfully.");
+    throw new Error("Không có endpoint Dashboard nào phản hồi thành công.");
   }
 
   const products = productsResult.status === "fulfilled" ? productsResult.value.items : [];
@@ -114,10 +114,19 @@ function DashboardPage() {
       <div style={{ display: "grid", gap: "1rem" }}>
         <PageHeader onRefresh={() => query.execute()} />
         <ErrorState
-          title="Dashboard unavailable"
+          title="Dashboard tạm thời chưa khả dụng"
           description={query.error}
-          action={<button className="button button--secondary" onClick={() => query.execute()}>Retry</button>}
+          action={<button className="button button--secondary" onClick={() => query.execute()}>Thử lại</button>}
         />
+      </div>
+    );
+  }
+
+  if (!query.data) {
+    return (
+      <div style={{ display: "grid", gap: "1rem" }}>
+        <PageHeader onRefresh={() => query.execute()} refreshing={query.loading} />
+        <PageSkeleton />
       </div>
     );
   }
@@ -129,7 +138,7 @@ function DashboardPage() {
       <PageHeader onRefresh={() => query.execute()} refreshing={query.loading} />
 
       <div className="stat-grid">
-        <StatCard label="Backend" value={safeText(data.health?.status, "Unavailable")} icon={<Server size={16} />} hint={safeText(data.health?.environment, "No health metadata")} />
+        <StatCard label="Backend" value={safeText(data.health?.status, "Tạm thời chưa khả dụng")} icon={<Server size={16} />} hint={safeText(data.health?.environment, "Chưa có metadata health")} />
         <StatCard label="Catalog" value={data.stats.productCount} icon={<Package size={16} />} hint="Products returned by real endpoints" />
         <StatCard label="Order Success" value={formatPercent(data.stats.successRate)} icon={<ShieldCheck size={16} />} hint={`${data.orders.length} total orders`} />
         <StatCard label="Signals" value={data.stats.signalCount} icon={<ScrollText size={16} />} hint="Failed orders and error-level logs" />
@@ -155,8 +164,8 @@ function DashboardPage() {
             </div>
           ) : (
             <EmptyState
-              title="Health endpoint not available"
-              description="The dashboard stayed online, but backend health metadata was not returned."
+              title="Health endpoint chưa sẵn sàng"
+              description="Dashboard vẫn hoạt động, nhưng backend chưa trả về metadata health."
             />
           )}
         </SectionCard>

@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --open",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host --open"
   },
   "engines": {
     "node": ">=18.18.0"

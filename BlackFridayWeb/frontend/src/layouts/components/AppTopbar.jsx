@@ -15,24 +15,24 @@ export function AppTopbar({ health, onOpenSidebar }) {
           <Menu size={18} />
         </button>
         <div>
-          <div className="app-topbar__eyebrow">Distributed locking frontend</div>
-          <div className="app-topbar__headline">Integration-ready operations workspace</div>
+          <div className="app-topbar__eyebrow">Giao diện vận hành distributed locking</div>
+          <div className="app-topbar__headline">Workspace giám sát & điều phối đã sẵn sàng tích hợp</div>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
         <div className="app-topbar__chip">
           <Server size={15} />
-          <span>{health?.serverId ?? "No server id"}</span>
+          <span>{health?.serverId ?? "Chưa có Server ID"}</span>
         </div>
         <div className="app-topbar__chip">
           <ShieldAlert size={15} />
-          <span>{health?.timestamp ? formatShortDateTime(health.timestamp) : "No health ping"}</span>
+          <span>{health?.timestamp ? formatShortDateTime(health.timestamp) : "Chưa nhận health ping"}</span>
         </div>
-        <StatusBadge status={health?.status ?? "unknown"} />
-        <div className="app-topbar__chip">{sessionLabel ?? "Authenticated session"}</div>
+        <StatusBadge status={health?.status ?? "DEGRADED"} />
+        <div className="app-topbar__chip">{sessionLabel ?? "Phiên đăng nhập đã xác thực"}</div>
         <Button tone="ghost" onClick={logout}>
           <LogOut size={16} />
-          Logout
+          Đăng xuất
         </Button>
       </div>
     </header>

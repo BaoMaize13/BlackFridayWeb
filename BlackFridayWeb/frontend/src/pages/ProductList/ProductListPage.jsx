@@ -84,7 +84,7 @@ function ProductListPage() {
         <div>
           <strong>{product.name}</strong>
           <div className="mono" style={{ color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
-            {product.code ?? "No SKU"}
+            {product.code ?? "Chưa có mã SKU"}
           </div>
         </div>
       )
@@ -182,10 +182,10 @@ function ProductListPage() {
       <SectionCard title="Product Registry" description="Unified catalog table with quick access into detail, purchase, and inventory flows.">
         {query.loading && !query.data ? <TableSkeleton /> : null}
         {!query.loading && query.error ? (
-          <ErrorState title="Product catalog unavailable" description={query.error} action={<Button tone="secondary" onClick={() => setSubmittedFilters({ ...submittedFilters })}>Retry</Button>} />
+          <ErrorState title="Danh mục sản phẩm tạm thời chưa khả dụng" description={query.error} action={<Button tone="secondary" onClick={() => setSubmittedFilters({ ...submittedFilters })}>Thử lại</Button>} />
         ) : null}
         {!query.loading && !query.error && query.data && !query.data.items.length ? (
-          <EmptyState title="No products matched the current filters" description="The frontend is ready for live data, but this query returned no products." />
+          <EmptyState title="Không có sản phẩm phù hợp bộ lọc hiện tại" description="Frontend đã sẵn sàng nhận dữ liệu live, nhưng truy vấn này chưa có kết quả." />
         ) : null}
         {!query.loading && !query.error && query.data?.items.length ? (
           <>

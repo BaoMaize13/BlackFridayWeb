@@ -250,8 +250,8 @@ function CompareSimulationPage() {
       >
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr repeat(4, minmax(0, 1fr))", gap: "1rem" }}>
-            <Field label="Product ID / SKU">
-              <Input value={form.productId} onChange={handleChange("productId")} placeholder="product-001" disabled={query.loading} />
+            <Field label="Product ID">
+              <Input value={form.productId} onChange={handleChange("productId")} placeholder="1" disabled={query.loading} />
             </Field>
             <Field label="Threads">
               <Input type="number" min="1" value={form.threads} onChange={handleChange("threads")} disabled={query.loading} />

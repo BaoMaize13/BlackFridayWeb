@@ -76,7 +76,7 @@ function PurchasePage() {
       setResult(purchaseResult);
       showToast({
         tone: purchaseResult.success ? "success" : "warn",
-        title: purchaseResult.success ? "Purchase accepted" : "Purchase returned a warning",
+        title: purchaseResult.success ? "Yêu cầu mua hàng đã được chấp nhận" : "Yêu cầu mua hàng trả về cảnh báo",
         description: purchaseResult.message
       });
       await workspaceQuery.execute();
@@ -100,7 +100,7 @@ function PurchasePage() {
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
             <Field label="Product">
               <Select value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)}>
-                <option value="">Choose a product</option>
+                <option value="">Chọn sản phẩm</option>
                 {(workspaceQuery.data?.products ?? []).map((product) => (
                   <option key={product.id} value={product.id}>
                     {product.name}
@@ -119,7 +119,7 @@ function PurchasePage() {
             </Field>
             <InlineError message={submitError} />
             <Button type="submit" disabled={!selectedProductId || submitting}>
-              {submitting ? "Submitting" : mode === "with-lock" ? "Submit Protected Purchase" : "Submit No-Lock Purchase"}
+              {submitting ? "Đang gửi" : mode === "with-lock" ? "Gửi yêu cầu mua hàng có lock" : "Gửi yêu cầu mua hàng no-lock"}
             </Button>
           </form>
         </SectionCard>
@@ -132,7 +132,7 @@ function PurchasePage() {
               <StatusBadge status={(selectedProduct.stock ?? 0) > 0 ? "ACTIVE" : "OFFLINE"} label={(selectedProduct.stock ?? 0) > 0 ? "Purchasable" : "Unavailable"} />
             </div>
           ) : (
-            <EmptyState title="Choose a product first" description="Product details will appear here after selection." />
+            <EmptyState title="Vui lòng chọn sản phẩm trước" description="Chi tiết sản phẩm sẽ hiển thị tại đây sau khi bạn chọn." />
           )}
         </SectionCard>
       </div>
@@ -181,7 +181,7 @@ function PurchasePage() {
             ))}
           </div>
         ) : (
-          <EmptyState title="No recent purchases yet" description="Activity will show up here when the backend exposes or accepts purchase records." />
+          <EmptyState title="Chưa có giao dịch mua hàng gần đây" description="Hoạt động sẽ hiển thị tại đây khi backend ghi nhận dữ liệu mua hàng." />
         )}
       </SectionCard>
     </div>

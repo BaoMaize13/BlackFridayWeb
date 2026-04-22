@@ -26,6 +26,14 @@ function LoginPage() {
     setForm((current) => ({ ...current, [key]: event.target.value }));
   };
 
+  const fillDemoAdmin = () => {
+    setForm({
+      email: "admin@example.com",
+      password: "password"
+    });
+    setError("");
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -97,6 +105,30 @@ function LoginPage() {
           {submitting ? "Signing In" : "Sign In to Workspace"}
         </Button>
       </form>
+
+      <div
+        style={{
+          display: "grid",
+          gap: "0.65rem",
+          padding: "0.95rem 1rem",
+          borderRadius: "1rem",
+          border: "1px solid var(--color-border)",
+          background: "rgba(17,30,51,0.72)"
+        }}
+      >
+        <strong>Demo admin credentials</strong>
+        <div style={{ color: "var(--color-text-secondary)" }}>
+          Email: <span className="mono">admin@example.com</span>
+        </div>
+        <div style={{ color: "var(--color-text-secondary)" }}>
+          Password: <span className="mono">password</span>
+        </div>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <Button tone="secondary" onClick={fillDemoAdmin}>
+            Use Demo Credentials
+          </Button>
+        </div>
+      </div>
 
       <div style={{ display: "grid", gap: "0.5rem", color: "var(--color-text-muted)", fontSize: "0.84rem" }}>
         <div>Backend base URL: {apiClient.getApiBaseUrl()}</div>

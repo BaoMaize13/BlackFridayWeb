@@ -2,7 +2,7 @@ import { getStatusTone } from "../../constants/statusMaps";
 
 export function StatusBadge({ status, tone, label }) {
   const resolvedTone = tone ?? getStatusTone(status);
-  const text = label ?? status ?? "Unknown";
+  const text = label ?? status ?? "Chưa xác định";
 
   return (
     <span className={`status-badge status-badge--${resolvedTone}`}>

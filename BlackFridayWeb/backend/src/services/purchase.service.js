@@ -144,7 +144,7 @@ class PurchaseService {
     await this.createAttemptLog({
       action: PURCHASE_LOG_ACTIONS.PURCHASE_WITH_LOCK_STARTED,
       message: `Purchase with-lock request received for productId=${payload.productId}, quantity=${payload.quantity}`,
-      productId: payload.productId,
+      productId: null,
       requestId,
       result: PURCHASE_LOG_RESULTS.SUCCESS,
       serverId
@@ -158,7 +158,7 @@ class PurchaseService {
             await this.createAttemptLog({
               action: PURCHASE_LOG_ACTIONS.LOCK_ACQUIRED_FOR_PURCHASE,
               message: `Distributed lock acquired for purchase lockKey=${lockKey}`,
-              productId: payload.productId,
+              productId: null,
               requestId,
               result: PURCHASE_LOG_RESULTS.SUCCESS,
               serverId
@@ -438,7 +438,7 @@ class PurchaseService {
         await this.createAttemptLog({
           action: PURCHASE_LOG_ACTIONS.LOCK_TIMEOUT_FOR_PURCHASE,
           message: `Lock timeout while waiting to purchase productId=${payload.productId}`,
-          productId: payload.productId,
+          productId: null,
           requestId,
           result: PURCHASE_LOG_RESULTS.FAILED,
           serverId
@@ -451,7 +451,7 @@ class PurchaseService {
         await this.createAttemptLog({
           action: PURCHASE_LOG_ACTIONS.PURCHASE_WITH_LOCK_FAILED,
           message: `Lock service unavailable during purchase: ${error.message}`,
-          productId: payload.productId,
+          productId: null,
           requestId,
           result: PURCHASE_LOG_RESULTS.FAILED,
           serverId
@@ -464,7 +464,7 @@ class PurchaseService {
         await this.createAttemptLog({
           action: PURCHASE_LOG_ACTIONS.PURCHASE_WITH_LOCK_FAILED,
           message: `Purchase with-lock failed: ${error.message}`,
-          productId: payload.productId,
+          productId: null,
           requestId,
           result: PURCHASE_LOG_RESULTS.FAILED,
           serverId

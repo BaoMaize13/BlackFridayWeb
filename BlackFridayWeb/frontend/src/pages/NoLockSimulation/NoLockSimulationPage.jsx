@@ -64,7 +64,7 @@ function NoLockSimulationPage() {
     setFormError("");
 
     if (!form.productId.trim()) {
-      setFormError("A real product id is required so the simulation can hit the backend contract.");
+      setFormError("Vui lòng nhập productId hợp lệ để chạy mô phỏng với dữ liệu backend thực tế.");
       return;
     }
 
@@ -75,11 +75,11 @@ function NoLockSimulationPage() {
           response.summary?.oversellDetected || response.summary?.consistent === false
             ? "warn"
             : "success",
-        title: "No-lock simulation completed",
+        title: "Mô phỏng no-lock đã hoàn tất",
         description:
           response.summary?.oversellDetected
-            ? "Oversell risk surfaced from the backend response."
-            : "The backend completed the run without explicit oversell detection."
+            ? "Backend đã ghi nhận tín hiệu rủi ro oversell trong kết quả trả về."
+            : "Backend hoàn tất phiên chạy và chưa ghi nhận cờ oversell trong lần test này."
       });
     } catch (error) {
       setFormError(error.message);
@@ -112,13 +112,13 @@ function NoLockSimulationPage() {
         >
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
             <Field
-              label="Product ID / SKU"
-              hint="Use a backend-recognized product identifier so the run targets a real record."
+              label="Product ID"
+              hint="Use the numeric product id returned by the backend, for example 1."
             >
               <Input
                 value={form.productId}
                 onChange={handleChange("productId")}
-                placeholder="product-001"
+                placeholder="1"
                 disabled={query.loading}
               />
             </Field>

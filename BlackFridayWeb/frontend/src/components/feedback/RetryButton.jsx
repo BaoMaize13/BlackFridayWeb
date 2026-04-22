@@ -3,7 +3,7 @@ import Button from "../ui/Button";
 export function RetryButton(props) {
   return (
     <Button tone="secondary" {...props}>
-      Retry
+      Thử lại
     </Button>
   );
 }

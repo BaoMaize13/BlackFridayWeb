@@ -194,7 +194,7 @@ function TestCasesPage() {
                       <StatusBadge status={testCase.type} label={testCase.type} tone={getTypeTone(testCase.type)} />
                     </div>
                     <div style={{ color: "var(--color-text-secondary)", minHeight: "3rem" }}>
-                      {testCase.description || "No description provided by the backend."}
+                      {testCase.description || "Backend chưa cung cấp mô tả cho test case này."}
                     </div>
                     <div style={{ color: "var(--color-text-muted)", fontSize: "0.84rem" }}>
                       Last run: {formatShortDateTime(testCase.lastExecutedAt)}
@@ -260,7 +260,7 @@ function TestCasesPage() {
             <div>
               <strong>Description:</strong>
               <div style={{ marginTop: "0.35rem", color: "var(--color-text-secondary)" }}>
-                {selected.description || "No description provided by the backend."}
+                {selected.description || "Backend chưa cung cấp mô tả cho test case này."}
               </div>
             </div>
           </div>

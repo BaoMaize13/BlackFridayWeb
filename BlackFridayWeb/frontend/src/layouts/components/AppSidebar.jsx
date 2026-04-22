@@ -46,7 +46,7 @@ export function AppSidebar({ onNavigate }) {
         </div>
         <div>
           <strong>BlackFridayWeb</strong>
-          <div className="app-sidebar__brand-copy">Oversell & lock control plane</div>
+          <div className="app-sidebar__brand-copy">Nền tảng điều phối oversell & distributed lock</div>
         </div>
       </div>
       <nav className="app-sidebar__nav">

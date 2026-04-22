@@ -142,19 +142,19 @@ function TestReportPage() {
         {query.loading && !query.data ? <TableSkeleton rows={6} /> : null}
         {!query.loading && query.error ? (
           <ErrorState
-            title="Reports unavailable"
+            title="Báo cáo tạm thời chưa khả dụng"
             description={query.error}
             action={
               <Button tone="secondary" onClick={() => query.execute()}>
-                Retry
+                Thử lại
               </Button>
             }
           />
         ) : null}
         {!query.loading && !query.error && !pagedItems.length ? (
           <EmptyState
-            title="No reports matched"
-            description="This frontend is ready for backend-generated reports, but the current query returned nothing."
+            title="Không có báo cáo phù hợp bộ lọc"
+            description="Frontend đã sẵn sàng nhận báo cáo từ backend, nhưng truy vấn hiện tại chưa có dữ liệu." 
           />
         ) : null}
         {!query.loading && !query.error && pagedItems.length ? (
@@ -216,7 +216,7 @@ function TestReportPage() {
                   ? detail.summary
                   : detail.summary
                     ? JSON.stringify(detail.summary, null, 2)
-                    : "No summary payload returned."}
+                    : "Backend chưa trả về summary payload cho báo cáo này."}
               </div>
             </div>
             {detailQuery.error ? (

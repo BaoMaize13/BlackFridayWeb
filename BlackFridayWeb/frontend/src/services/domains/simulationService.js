@@ -19,7 +19,7 @@ function resolveActorUserId() {
   const userId = storedSession?.user?.id ?? storedSession?.user?.email ?? null;
 
   if (!userId) {
-    throw new AppError("Please log in before running a simulation.", {
+    throw new AppError("Vui lòng đăng nhập trước khi chạy simulation.", {
       status: 401,
       errorCode: "UNAUTHORIZED"
     });
@@ -90,7 +90,7 @@ async function runSimulation(mode, inputConfig) {
   const config = buildSimulationConfig(inputConfig);
 
   if (!config.productId) {
-    throw new AppError("A numeric productId is required before running the simulation.", {
+    throw new AppError("Vui lòng cung cấp productId dạng số trước khi chạy simulation.", {
       status: 400,
       errorCode: "VALIDATION_ERROR"
     });
@@ -170,16 +170,16 @@ function buildCompareMetrics(noLock, withLock) {
       noLock: noLock.summary.successCount,
       withLock: withLock.summary.successCount,
       verdict: withLock.summary.successCount >= noLock.summary.successCount
-        ? "Protected flow preserved at least the same successful throughput."
-        : "Protected flow reduced successful throughput."
+        ? "Protected flow duy trì throughput thành công ở mức tương đương hoặc tốt hơn."
+        : "Protected flow làm giảm throughput thành công trong lần chạy này."
     },
     {
       label: "Failure Count",
       noLock: noLock.summary.failureCount,
       withLock: withLock.summary.failureCount,
       verdict: withLock.summary.failureCount <= noLock.summary.failureCount
-        ? "Protected flow reduced failed outcomes."
-        : "Protected flow returned more failed outcomes."
+        ? "Protected flow giảm số lượng request thất bại."
+        : "Protected flow ghi nhận nhiều request thất bại hơn trong lần chạy này."
     },
     {
       label: "Oversell Detected",
@@ -187,8 +187,8 @@ function buildCompareMetrics(noLock, withLock) {
       withLock: withLock.summary.oversellDetected ? "YES" : "NO",
       verdict:
         noLock.summary.oversellDetected && !withLock.summary.oversellDetected
-          ? "Distributed locking removed oversell in this compared run."
-          : "Oversell difference was not fully eliminated in current data."
+          ? "Distributed locking đã loại bỏ oversell trong lần so sánh này."
+          : "Chênh lệch oversell chưa được loại bỏ hoàn toàn trong dữ liệu hiện tại."
     },
     {
       label: "Consistency",
@@ -196,8 +196,8 @@ function buildCompareMetrics(noLock, withLock) {
       withLock: withLock.summary.consistent === false ? "BROKEN" : "OK",
       verdict:
         noLock.summary.consistent === false && withLock.summary.consistent !== false
-          ? "Distributed locking restored consistency."
-          : "Consistency difference was not strong in current data."
+          ? "Distributed locking đã khôi phục consistency cho hệ thống."
+          : "Sự khác biệt về consistency chưa rõ rệt trong dữ liệu hiện tại."
     }
   ];
 }

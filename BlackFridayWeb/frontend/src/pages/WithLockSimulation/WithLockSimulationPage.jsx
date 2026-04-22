@@ -67,7 +67,7 @@ function WithLockSimulationPage() {
     setFormError("");
 
     if (!form.productId.trim()) {
-      setFormError("A real product id is required before the protected flow can run.");
+      setFormError("Vui lòng nhập productId hợp lệ trước khi chạy luồng protected simulation.");
       return;
     }
 
@@ -78,11 +78,11 @@ function WithLockSimulationPage() {
           response.summary?.consistent === false || response.summary?.oversellDetected
             ? "warn"
             : "success",
-        title: "Protected simulation completed",
+        title: "Protected simulation đã hoàn tất",
         description:
           response.summary?.consistent === false
-            ? "The backend reported a consistency issue even with locking."
-            : "The protected flow completed and the frontend captured the returned queue metrics."
+            ? "Backend ghi nhận vấn đề consistency ngay cả khi đã bật cơ chế locking."
+            : "Luồng protected đã hoàn tất và frontend đã ghi nhận đầy đủ queue metrics từ backend."
       });
     } catch (error) {
       setFormError(error.message);
@@ -114,11 +114,11 @@ function WithLockSimulationPage() {
           description="Run the same concurrency pressure with lock parameters so the backend can demonstrate queueing and consistency controls."
         >
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
-            <Field label="Product ID / SKU">
+            <Field label="Product ID">
               <Input
                 value={form.productId}
                 onChange={handleChange("productId")}
-                placeholder="product-001"
+                placeholder="1"
                 disabled={query.loading}
               />
             </Field>
@@ -199,11 +199,11 @@ function WithLockSimulationPage() {
 
       {!query.loading && query.error && !result ? (
         <ErrorState
-          title="Protected simulation unavailable"
+          title="Protected simulation tạm thời chưa khả dụng"
           description={query.error}
           action={
             <Button tone="secondary" onClick={() => query.execute(buildPayload(form))}>
-              Retry
+              Thử lại
             </Button>
           }
         />
@@ -211,8 +211,8 @@ function WithLockSimulationPage() {
 
       {!query.loading && !query.error && !result ? (
         <EmptyState
-          title="No protected run yet"
-          description="Submit the config to compare lock-backed behavior against the no-lock scenario."
+          title="Chưa có phiên protected run"
+          description="Gửi cấu hình để so sánh hành vi lock-backed với kịch bản no-lock."
         />
       ) : null}
 
@@ -235,7 +235,7 @@ function WithLockSimulationPage() {
                   />
                   <StatusBadge
                     status={summary?.oversellDetected ? "OVERSOLD" : "SUCCESS"}
-                    label={summary?.oversellDetected ? "Oversell detected" : "No oversell flag"}
+                    label={summary?.oversellDetected ? "Phát hiện oversell" : "Không ghi nhận cờ oversell"}
                   />
                 </div>
                 <div style={{ display: "grid", gap: "0.45rem", color: "var(--color-text-secondary)" }}>
@@ -268,8 +268,8 @@ function WithLockSimulationPage() {
                 />
               ) : (
                 <EmptyState
-                  title="No row-level request details"
-                  description="The backend finished the run but did not expose individual protected request rows."
+                  title="Chưa có dữ liệu chi tiết theo từng request"
+                  description="Backend đã hoàn tất phiên chạy nhưng chưa trả về bản ghi chi tiết cho từng protected request."
                 />
               )}
             </SectionCard>
@@ -304,8 +304,8 @@ function WithLockSimulationPage() {
                 </div>
               ) : (
                 <EmptyState
-                  title="No protected logs returned"
-                  description="The page is ready for queue and lock logs, but the backend did not return any for this run."
+                  title="Chưa có protected logs trong kết quả trả về"
+                  description="Trang đã sẵn sàng hiển thị queue và lock logs, nhưng backend chưa trả dữ liệu log cho lần chạy này."
                 />
               )}
             </SectionCard>
