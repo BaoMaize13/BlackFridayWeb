@@ -3,24 +3,25 @@ const { buildConfig, printSummary, runPurchaseLoad, writeReport } = require("./l
 async function main() {
   const config = buildConfig({
     mode: "with-lock",
-    requests: 20,
-    concurrency: 20,
-    initialStock: 1
+    requests: 100,
+    concurrency: 50,
+    initialStock: 10
   });
+  const normalizedMode = String(config.mode).toLowerCase() === "no-lock" ? "no-lock" : "with-lock";
   const summary = await runPurchaseLoad(
     {
       ...config,
-      mode: "with-lock"
+      mode: normalizedMode
     },
     {
-      mode: "with-lock"
+      mode: normalizedMode
     }
   );
 
   printSummary(summary);
-  writeReport(summary, "with-lock", config.reportDir);
+  writeReport(summary, "stress", config.reportDir);
 
-  if (summary.stockNegative || summary.oversellDetected || !summary.requirementPassed) {
+  if (normalizedMode === "with-lock" && (!summary.requirementPassed || summary.stockNegative || summary.oversellDetected)) {
     process.exitCode = 1;
   }
 }

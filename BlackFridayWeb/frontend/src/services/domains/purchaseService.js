@@ -3,8 +3,6 @@ import {
 } from "../api/adapters";
 import { apiClient } from "../api/apiClient";
 import { endpoints } from "../api/endpoints";
-import { AppError } from "../../utils/errors";
-import { getStoredSession } from "../../utils/storage";
 import { getOrderById, listOrders } from "./orderService";
 
 function resolveActorUserId(explicitUserId) {
@@ -12,17 +10,7 @@ function resolveActorUserId(explicitUserId) {
     return String(explicitUserId);
   }
 
-  const storedSession = getStoredSession();
-  const userId = storedSession?.user?.id ?? storedSession?.user?.email ?? null;
-
-  if (!userId) {
-    throw new AppError("Please log in before submitting a purchase request.", {
-      status: 401,
-      errorCode: "UNAUTHORIZED"
-    });
-  }
-
-  return String(userId);
+  return "frontend-demo-user";
 }
 
 function buildRequestId(prefix) {
@@ -38,6 +26,7 @@ async function submitPurchase(path, payload, modeLabel) {
     userId: resolveActorUserId(payload.userId)
   };
   const responsePayload = await apiClient.request(path, {
+    auth: false,
     method: "POST",
     body: requestPayload
   });

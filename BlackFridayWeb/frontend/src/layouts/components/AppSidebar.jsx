@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  FileBarChart2,
   FlaskConical,
   GitCompareArrows,
   LayoutDashboard,
@@ -32,6 +33,7 @@ const iconMap = {
   logs: Logs,
   "flask-conical": FlaskConical,
   "chart-column-increasing": BarChart3,
+  "file-bar-chart-2": FileBarChart2,
   "settings-2": Settings2,
   "receipt-text": ReceiptText,
   activity: Activity

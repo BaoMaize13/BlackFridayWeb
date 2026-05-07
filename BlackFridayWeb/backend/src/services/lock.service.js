@@ -15,6 +15,18 @@ else
 end
 `;
 
+const lockMetrics = {
+  acquireAttempts: 0,
+  acquired: 0,
+  releaseFailed: 0,
+  releaseSkipped: 0,
+  released: 0,
+  retries: 0,
+  timeouts: 0,
+  totalWaitMs: 0,
+  unavailable: 0
+};
+
 function maskToken(token) {
   if (!token) {
     return null;
@@ -25,6 +37,16 @@ function maskToken(token) {
   }
 
   return `${token.slice(0, 8)}...${token.slice(-4)}`;
+}
+
+function cloneLockMetrics() {
+  const averageWaitMs =
+    lockMetrics.acquired > 0 ? Number((lockMetrics.totalWaitMs / lockMetrics.acquired).toFixed(2)) : 0;
+
+  return {
+    ...lockMetrics,
+    averageWaitMs
+  };
 }
 
 function resolveLogger(options = {}) {
@@ -153,6 +175,7 @@ class LockService {
 
     while (true) {
       attemptCount += 1;
+      lockMetrics.acquireAttempts += 1;
 
       let setResult;
 
@@ -162,6 +185,7 @@ class LockService {
           PX: resolvedOptions.ttlMs
         });
       } catch (error) {
+        lockMetrics.unavailable += 1;
         activeLogger.error(
           buildLogContext(lockKey, resolvedOptions, {
             attemptCount,
@@ -176,6 +200,8 @@ class LockService {
 
       if (setResult === "OK") {
         const elapsedMs = Date.now() - startedAtMs;
+        lockMetrics.acquired += 1;
+        lockMetrics.totalWaitMs += elapsedMs;
 
         activeLogger.info(
           buildLogContext(lockKey, resolvedOptions, {
@@ -201,6 +227,7 @@ class LockService {
       const elapsedMs = Date.now() - startedAtMs;
 
       if (elapsedMs >= resolvedOptions.waitTimeoutMs) {
+        lockMetrics.timeouts += 1;
         activeLogger.warn(
           buildLogContext(lockKey, resolvedOptions, {
             acquired: false,
@@ -230,6 +257,7 @@ class LockService {
         "Lock acquisition retry scheduled"
       );
 
+      lockMetrics.retries += 1;
       await sleep(Math.min(resolvedOptions.retryIntervalMs, resolvedOptions.waitTimeoutMs - elapsedMs));
     }
   }
@@ -256,6 +284,7 @@ class LockService {
       );
 
       if (releasedCount === 1) {
+        lockMetrics.released += 1;
         activeLogger.info(
           buildLogContext(lockKey, resolvedOptions, {
             action: LOCK_EVENTS.LOCK_RELEASED,
@@ -282,12 +311,14 @@ class LockService {
         "Lock release skipped because token mismatched or lock already expired"
       );
 
+      lockMetrics.releaseSkipped += 1;
       return {
         lockKey,
         reason: LOCK_RELEASE_REASONS.TOKEN_MISMATCH_OR_EXPIRED,
         released: false
       };
     } catch (error) {
+      lockMetrics.releaseFailed += 1;
       activeLogger.error(
         buildLogContext(lockKey, resolvedOptions, {
           action: LOCK_EVENTS.LOCK_RELEASE_FAILED,
@@ -316,16 +347,24 @@ class LockService {
     let handlerError = null;
 
     try {
+      if (typeof options.onLockAcquired === "function") {
+        options.onLockAcquired(lock);
+      }
+
       return await handler(lock);
     } catch (error) {
       handlerError = error;
       throw error;
     } finally {
       try {
-        await this.releaseLock(lock.lockKey, lock.token, {
+        const releaseResult = await this.releaseLock(lock.lockKey, lock.token, {
           ...options,
           ...resolvedOptions
         });
+
+        if (typeof options.onLockReleased === "function") {
+          options.onLockReleased(releaseResult);
+        }
       } catch (releaseError) {
         activeLogger.warn(
           buildLogContext(lockKey, resolvedOptions, {
@@ -340,6 +379,10 @@ class LockService {
         }
       }
     }
+  }
+
+  getMetrics() {
+    return cloneLockMetrics();
   }
 }
 

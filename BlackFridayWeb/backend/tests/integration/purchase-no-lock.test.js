@@ -128,14 +128,6 @@ test("POST /api/purchase/no-lock validates required fields and quantity", async 
     {
       body: {
         productId: 1,
-        quantity: 1,
-        userId: "user-004"
-      },
-      expectedField: "requestId"
-    },
-    {
-      body: {
-        productId: 1,
         quantity: 0,
         requestId: "purchase-no-lock-invalid-003",
         userId: "user-004"
@@ -145,7 +137,7 @@ test("POST /api/purchase/no-lock validates required fields and quantity", async 
   ];
 
   for (const invalidCase of invalidBodies) {
-    const response = await client.post("/api/purchase/no-lock").send(invalidCase.body).expect(422);
+    const response = await client.post("/api/purchase/no-lock").send(invalidCase.body).expect(400);
 
     assert.equal(response.body.success, false);
     assert.equal(response.body.error.code, "VALIDATION_ERROR");

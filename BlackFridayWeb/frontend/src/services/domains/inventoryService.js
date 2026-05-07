@@ -15,7 +15,8 @@ export async function getInventoryOverview() {
 }
 
 export async function listInventory(filters = {}) {
-  const payload = await apiClient.request(endpoints.admin.products, {
+  const payload = await apiClient.request(endpoints.products.list, {
+    auth: false,
     query: {
       code: filters.code
     }
@@ -35,15 +36,12 @@ export async function getInventoryHistory(productsById = new Map()) {
 }
 
 export async function updateInventoryStock(productId, stock) {
-  const payload = await apiClient.request(endpoints.admin.updateProductStock(productId), {
-    method: "PATCH",
-    body: { stock }
-  });
-  return normalizeProduct(payload);
+  return resetInventoryStock(productId, stock);
 }
 
 export async function resetInventoryStock(productId, stock) {
-  const payload = await apiClient.request(endpoints.admin.resetProduct(productId), {
+  const payload = await apiClient.request(endpoints.products.resetStock(productId), {
+    auth: false,
     method: "POST",
     body: {
       clearLogs: true,

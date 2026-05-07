@@ -19,9 +19,10 @@ import { formatDurationMs, formatNumber, formatShortDateTime } from "../../utils
 
 const defaultConfig = {
   productId: "",
-  threads: "10",
+  concurrency: "20",
   quantity: "1",
-  totalRequests: "50",
+  totalRequests: "20",
+  initialStock: "1",
   lockType: "pessimistic",
   lockTimeout: "5000"
 };
@@ -30,10 +31,11 @@ function buildPayload(config) {
   return {
     product_id: config.productId || undefined,
     productId: config.productId || undefined,
-    threads: Number(config.threads) || 10,
+    concurrency: Number(config.concurrency) || 20,
     quantity: Number(config.quantity) || 1,
-    total_requests: Number(config.totalRequests) || 50,
-    totalRequests: Number(config.totalRequests) || 50,
+    total_requests: Number(config.totalRequests) || 20,
+    totalRequests: Number(config.totalRequests) || 20,
+    initialStock: Number(config.initialStock) || 1,
     lock_type: config.lockType || "pessimistic",
     lockType: config.lockType || "pessimistic",
     lock_timeout: Number(config.lockTimeout) || 5000,
@@ -53,7 +55,7 @@ function WithLockSimulationPage() {
     () => [
       { label: "Success", value: summary?.successCount ?? 0 },
       { label: "Failed", value: summary?.failureCount ?? 0 },
-      { label: "Contentions", value: summary?.contentionCount ?? 0 }
+      { label: "Lock Timeout", value: summary?.lockTimeoutCount ?? 0 }
     ],
     [summary]
   );
@@ -123,8 +125,8 @@ function WithLockSimulationPage() {
               />
             </Field>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
-              <Field label="Threads">
-                <Input type="number" min="1" value={form.threads} onChange={handleChange("threads")} disabled={query.loading} />
+              <Field label="Concurrency">
+                <Input type="number" min="1" value={form.concurrency} onChange={handleChange("concurrency")} disabled={query.loading} />
               </Field>
               <Field label="Quantity / Request">
                 <Input type="number" min="1" value={form.quantity} onChange={handleChange("quantity")} disabled={query.loading} />
@@ -133,6 +135,9 @@ function WithLockSimulationPage() {
                 <Input type="number" min="1" value={form.totalRequests} onChange={handleChange("totalRequests")} disabled={query.loading} />
               </Field>
             </div>
+            <Field label="Initial Stock">
+              <Input type="number" min="0" value={form.initialStock} onChange={handleChange("initialStock")} disabled={query.loading} />
+            </Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
               <Field label="Lock Strategy">
                 <Select value={form.lockType} onChange={handleChange("lockType")} disabled={query.loading}>
@@ -221,7 +226,7 @@ function WithLockSimulationPage() {
           <div className="stat-grid">
             <StatCard label="Requests" value={formatNumber(summary?.totalRequests ?? 0)} />
             <StatCard label="Success" value={formatNumber(summary?.successCount ?? 0)} />
-            <StatCard label="Queue Depth" value={formatNumber(summary?.waitingQueue ?? 0)} />
+            <StatCard label="Lock Wait Avg" value={`${formatNumber(summary?.lockWaitAvgMs ?? 0)} ms`} />
             <StatCard label="Duration" value={formatDurationMs(summary?.durationMs)} />
           </div>
 
@@ -240,7 +245,7 @@ function WithLockSimulationPage() {
                 </div>
                 <div style={{ display: "grid", gap: "0.45rem", color: "var(--color-text-secondary)" }}>
                   <div>Lock type: {summary?.lockType ?? form.lockType}</div>
-                  <div>Contentions: {formatNumber(summary?.contentionCount ?? 0)}</div>
+                  <div>Lock timeouts: {formatNumber(summary?.lockTimeoutCount ?? 0)}</div>
                   <div>Final stock: {formatNumber(summary?.finalStock)}</div>
                 </div>
               </div>

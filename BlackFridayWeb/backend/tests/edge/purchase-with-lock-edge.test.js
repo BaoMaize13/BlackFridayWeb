@@ -59,40 +59,6 @@ test("with-lock validation edge cases return VALIDATION_ERROR and do not acquire
       {
         body: {
           productId: product.id,
-          quantity: 1,
-          requestId: "with-lock-validation-003"
-        },
-        expectedField: "userId"
-      },
-      {
-        body: {
-          productId: product.id,
-          quantity: 1,
-          requestId: "with-lock-validation-004",
-          userId: "   "
-        },
-        expectedField: "userId"
-      },
-      {
-        body: {
-          productId: product.id,
-          quantity: 1,
-          userId: "edge-user-001"
-        },
-        expectedField: "requestId"
-      },
-      {
-        body: {
-          productId: product.id,
-          quantity: 1,
-          requestId: "   ",
-          userId: "edge-user-001"
-        },
-        expectedField: "requestId"
-      },
-      {
-        body: {
-          productId: product.id,
           requestId: "with-lock-validation-007",
           userId: "edge-user-001"
         },
@@ -137,7 +103,7 @@ test("with-lock validation edge cases return VALIDATION_ERROR and do not acquire
     ];
 
     for (const invalidCase of invalidCases) {
-      const response = await client.post("/api/purchase/with-lock").send(invalidCase.body).expect(422);
+      const response = await client.post("/api/purchase/with-lock").send(invalidCase.body).expect(400);
 
       assert.equal(response.body.success, false);
       assert.equal(response.body.error.code, ERROR_CODES.VALIDATION_ERROR);

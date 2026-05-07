@@ -1,228 +1,162 @@
-import { coerceObject, normalizeLog } from "../api/adapters";
+import { coerceArray, coerceObject } from "../api/adapters";
 import { apiClient } from "../api/apiClient";
 import { endpoints } from "../api/endpoints";
-import { AppError } from "../../utils/errors";
-import { getStoredSession } from "../../utils/storage";
 
 function toPositiveInteger(value, fallback) {
   const numericValue = Number(value);
-
-  if (!Number.isInteger(numericValue) || numericValue <= 0) {
-    return fallback;
-  }
-
-  return numericValue;
+  return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : fallback;
 }
 
-function resolveActorUserId() {
-  const storedSession = getStoredSession();
-  const userId = storedSession?.user?.id ?? storedSession?.user?.email ?? null;
-
-  if (!userId) {
-    throw new AppError("Vui lòng đăng nhập trước khi chạy simulation.", {
-      status: 401,
-      errorCode: "UNAUTHORIZED"
-    });
-  }
-
-  return String(userId);
+function toNonNegativeInteger(value, fallback) {
+  const numericValue = Number(value);
+  return Number.isInteger(numericValue) && numericValue >= 0 ? numericValue : fallback;
 }
 
 function buildSimulationConfig(config = {}) {
   return {
-    initialStock: Number(config.initialStock ?? config.initial_stock ?? 1) || 1,
-    productId: Number(config.productId ?? config.product_id),
+    artificialDelayMs:
+      config.artificialDelayMs === undefined || config.artificialDelayMs === ""
+        ? undefined
+        : toNonNegativeInteger(config.artificialDelayMs, undefined),
+    concurrency: toPositiveInteger(config.concurrency ?? config.threads, 20),
+    initialStock: toNonNegativeInteger(config.initialStock ?? config.initial_stock, 1),
+    productId: toPositiveInteger(config.productId ?? config.product_id, null),
     quantity: toPositiveInteger(config.quantity, 1),
-    totalRequests: toPositiveInteger(config.totalRequests ?? config.total_requests ?? config.threads, 20)
+    totalRequests: toPositiveInteger(config.totalRequests ?? config.total_requests ?? config.requests, 20)
   };
 }
 
-function buildRequestId(prefix, requestIndex) {
-  return `${prefix}-${Date.now()}-${String(requestIndex + 1).padStart(3, "0")}`;
-}
-
-async function resetSimulationProduct(productId, initialStock) {
-  await apiClient.request(endpoints.admin.resetProduct(productId), {
-    method: "POST",
-    body: {
-      clearLogs: true,
-      clearOrders: true,
-      stock: initialStock
-    }
-  });
-}
-
-function buildResultRow(entry, index) {
-  const data = coerceObject(entry.response?.data);
-  const stock = coerceObject(data.stock);
-  const order = coerceObject(data.order);
+function normalizeRequestLog(entry, index) {
+  const item = coerceObject(entry);
 
   return {
-    id: entry.requestId,
-    thread: index + 1,
-    status: entry.success ? (order.status ?? "SUCCESS") : entry.errorCode ?? "FAILED",
-    quantity: data.quantity ?? order.quantity ?? entry.quantity,
-    stockBefore: data.stockBefore ?? stock.before ?? null,
-    stockAfter: data.stockAfter ?? stock.after ?? null,
-    lockWaitMs: null,
-    timestamp: entry.timestamp
+    id: item.requestId ?? item.id ?? `${index + 1}`,
+    thread: item.index ?? index + 1,
+    requestId: item.requestId ?? null,
+    status: item.status ?? (item.success ? "SUCCESS" : item.reason ?? "FAILED"),
+    success: Boolean(item.success),
+    reason: item.reason ?? null,
+    quantity: item.quantity ?? null,
+    stockBefore: item.stockBefore ?? null,
+    stockAfter: item.stockAfter ?? null,
+    lockWaitMs: item.lockWaitMs ?? null,
+    serverInstanceId: item.serverInstanceId ?? null,
+    timestamp: item.timestamp ?? null
   };
 }
 
-function buildSimulationSummary(mode, config, metrics, durationMs) {
-  return {
-    productId: metrics.productId ?? config.productId,
-    totalRequests: config.totalRequests,
-    successCount: metrics.orders?.success ?? 0,
-    failureCount: metrics.orders?.failed ?? 0,
-    consistent: metrics.consistencyCheck?.dataConsistent ?? null,
-    oversellDetected: metrics.consistencyCheck?.oversellDetected ?? null,
-    initialStock: metrics.stockMetrics?.initialStock ?? config.initialStock,
-    finalStock: metrics.stockMetrics?.finalStock ?? null,
-    durationMs,
-    lockType: mode === "with-lock" ? "redis-distributed-lock" : null,
-    waitingQueue: null,
-    contentionCount: mode === "with-lock" ? metrics.errors?.lockTimeout ?? 0 : 0
-  };
-}
-
-async function runSimulation(mode, inputConfig) {
-  const config = buildSimulationConfig(inputConfig);
-
-  if (!config.productId) {
-    throw new AppError("Vui lòng cung cấp productId dạng số trước khi chạy simulation.", {
-      status: 400,
-      errorCode: "VALIDATION_ERROR"
-    });
-  }
-
-  const actorUserId = resolveActorUserId();
-  const endpoint = mode === "with-lock" ? endpoints.purchase.withLock : endpoints.purchase.noLock;
-  const requestPrefix = mode === "with-lock" ? "with-lock-sim" : "no-lock-sim";
-
-  await resetSimulationProduct(config.productId, config.initialStock);
-
-  const startedAt = performance.now();
-  const requestEntries = await Promise.all(
-    Array.from({ length: config.totalRequests }, async (_, requestIndex) => {
-      const requestId = buildRequestId(requestPrefix, requestIndex);
-      const timestamp = new Date().toISOString();
-
-      try {
-        const response = await apiClient.request(endpoint, {
-          method: "POST",
-          body: {
-            productId: config.productId,
-            quantity: config.quantity,
-            requestId,
-            userId: actorUserId
-          }
-        });
-
-        return {
-          errorCode: null,
-          quantity: config.quantity,
-          requestId,
-          response,
-          success: true,
-          timestamp
-        };
-      } catch (error) {
-        return {
-          errorCode: error.errorCode ?? error.code ?? "FAILED",
-          message: error.message,
-          quantity: config.quantity,
-          requestId,
-          response: null,
-          success: false,
-          timestamp
-        };
-      }
-    })
-  );
-  const durationMs = Math.round(performance.now() - startedAt);
-  const metricsPayload = await apiClient.request(endpoints.admin.metrics, {
-    query: {
-      includeLogs: true,
-      includeServerBreakdown: mode === "with-lock",
-      initialStock: config.initialStock,
-      productId: config.productId,
-      quantity: config.quantity
-    }
-  });
-  const metrics = coerceObject(metricsPayload);
+function normalizeEvidenceLog(entry) {
+  const item = coerceObject(entry);
 
   return {
-    summary: buildSimulationSummary(mode, config, metrics, durationMs),
-    results: requestEntries.map(buildResultRow),
-    logs: (metrics.attemptLogs?.items ?? []).map((entry) => normalizeLog(entry)),
-    raw: {
-      metrics,
-      requestEntries
-    }
+    timestamp: item.timestamp ?? item.createdAt ?? null,
+    level: item.result ?? "INFO",
+    message: item.message ?? item.action ?? "Log entry",
+    action: item.action ?? null,
+    requestId: item.requestId ?? null,
+    serverInstanceId: item.serverInstanceId ?? null,
+    stockBefore: item.stockBefore ?? null,
+    stockAfter: item.stockAfter ?? null
   };
 }
 
-function buildCompareMetrics(noLock, withLock) {
-  return [
-    {
-      label: "Success Count",
-      noLock: noLock.summary.successCount,
-      withLock: withLock.summary.successCount,
-      verdict: withLock.summary.successCount >= noLock.summary.successCount
-        ? "Protected flow duy trì throughput thành công ở mức tương đương hoặc tốt hơn."
-        : "Protected flow làm giảm throughput thành công trong lần chạy này."
+export function normalizeSimulationResponse(payload) {
+  const data = coerceObject(payload);
+  const summary = coerceObject(data.summary ?? data);
+  const requestLogs = coerceArray(data.requestLogs ?? data.results);
+  const evidenceLogs = coerceArray(data.evidenceLogs ?? data.logs);
+
+  return {
+    id: data.id ?? null,
+    reportPath: data.reportPath ?? null,
+    summary: {
+      mode: summary.mode ?? data.mode ?? null,
+      productId: summary.productId ?? data.productId ?? null,
+      totalRequests: Number(summary.totalRequests ?? data.totalRequests ?? requestLogs.length) || 0,
+      successCount: Number(summary.successCount ?? data.successCount ?? 0) || 0,
+      failedCount: Number(summary.failedCount ?? data.failedCount ?? 0) || 0,
+      failureCount: Number(summary.failedCount ?? data.failedCount ?? 0) || 0,
+      consistent: summary.requirementPassed ?? data.requirementPassed ?? null,
+      oversellDetected: Boolean(summary.oversellDetected ?? data.oversellDetected),
+      raceConditionConfirmed: Boolean(summary.raceConditionConfirmed ?? data.raceConditionConfirmed),
+      initialStock: summary.initialStock ?? data.initialStock ?? null,
+      finalStock: summary.finalStock ?? data.finalStock ?? null,
+      stockNegative: Boolean(summary.stockNegative ?? data.stockNegative),
+      durationMs: Number(data.durationMs ?? summary.durationMs ?? 0) || null,
+      lockWaitAvgMs: Number(summary.lockWaitAvgMs ?? 0) || 0,
+      lockTimeoutCount: Number(summary.lockTimeoutCount ?? 0) || 0,
+      maxConcurrentRequests: Number(summary.maxConcurrentRequests ?? data.maxConcurrentRequests ?? 0) || 0,
+      requirementPassed: Boolean(summary.requirementPassed ?? data.requirementPassed)
     },
-    {
-      label: "Failure Count",
-      noLock: noLock.summary.failureCount,
-      withLock: withLock.summary.failureCount,
-      verdict: withLock.summary.failureCount <= noLock.summary.failureCount
-        ? "Protected flow giảm số lượng request thất bại."
-        : "Protected flow ghi nhận nhiều request thất bại hơn trong lần chạy này."
-    },
-    {
-      label: "Oversell Detected",
-      noLock: noLock.summary.oversellDetected ? "YES" : "NO",
-      withLock: withLock.summary.oversellDetected ? "YES" : "NO",
-      verdict:
-        noLock.summary.oversellDetected && !withLock.summary.oversellDetected
-          ? "Distributed locking đã loại bỏ oversell trong lần so sánh này."
-          : "Chênh lệch oversell chưa được loại bỏ hoàn toàn trong dữ liệu hiện tại."
-    },
-    {
-      label: "Consistency",
-      noLock: noLock.summary.consistent === false ? "BROKEN" : "OK",
-      withLock: withLock.summary.consistent === false ? "BROKEN" : "OK",
-      verdict:
-        noLock.summary.consistent === false && withLock.summary.consistent !== false
-          ? "Distributed locking đã khôi phục consistency cho hệ thống."
-          : "Sự khác biệt về consistency chưa rõ rệt trong dữ liệu hiện tại."
-    }
-  ];
+    results: requestLogs.map(normalizeRequestLog),
+    logs: evidenceLogs.map(normalizeEvidenceLog),
+    raw: data
+  };
 }
 
 export async function runNoLockSimulation(config) {
-  return runSimulation("no-lock", config);
+  const payload = await apiClient.request(endpoints.simulation.noLock, {
+    auth: false,
+    method: "POST",
+    body: buildSimulationConfig(config),
+    timeoutMs: 60000
+  });
+
+  return normalizeSimulationResponse(payload);
 }
 
 export async function runWithLockSimulation(config) {
-  return runSimulation("with-lock", config);
+  const payload = await apiClient.request(endpoints.simulation.withLock, {
+    auth: false,
+    method: "POST",
+    body: buildSimulationConfig(config),
+    timeoutMs: 60000
+  });
+
+  return normalizeSimulationResponse(payload);
 }
 
 export async function runCompareSimulation(config) {
-  const noLock = await runSimulation("no-lock", config);
-  const withLock = await runSimulation("with-lock", config);
+  const payload = await apiClient.request(endpoints.simulation.compare, {
+    auth: false,
+    method: "POST",
+    body: buildSimulationConfig(config),
+    timeoutMs: 120000
+  });
+  const data = coerceObject(payload);
 
   return {
+    id: data.id ?? null,
+    source: "compare-endpoint",
     summary: {
-      productId: noLock.summary.productId ?? withLock.summary.productId,
-      totalRequests: noLock.summary.totalRequests,
-      initialStock: noLock.summary.initialStock,
-      durationMs: (noLock.summary.durationMs ?? 0) + (withLock.summary.durationMs ?? 0)
+      productId: data.productId ?? data.noLock?.productId ?? data.withLock?.productId ?? null,
+      totalRequests: data.totalRequests ?? data.noLock?.totalRequests ?? data.withLock?.totalRequests ?? 0,
+      initialStock: data.initialStock ?? data.noLock?.initialStock ?? data.withLock?.initialStock ?? null,
+      durationMs: (data.noLock?.durationMs ?? 0) + (data.withLock?.durationMs ?? 0),
+      conclusion: data.summary?.conclusion ?? null
     },
-    noLock,
-    withLock,
-    metrics: buildCompareMetrics(noLock, withLock)
+    noLock: normalizeSimulationResponse(data.noLock),
+    withLock: normalizeSimulationResponse(data.withLock),
+    metrics: [
+      {
+        label: "Success",
+        noLock: data.noLock?.successCount ?? data.noLock?.summary?.successCount ?? 0,
+        withLock: data.withLock?.successCount ?? data.withLock?.summary?.successCount ?? 0,
+        verdict: "With-lock must never exceed available stock."
+      },
+      {
+        label: "Oversell",
+        noLock: data.noLock?.oversellDetected ? "YES" : "NO",
+        withLock: data.withLock?.oversellDetected ? "YES" : "NO",
+        verdict: data.withLock?.oversellDetected ? "With-lock failed" : "With-lock protected inventory"
+      },
+      {
+        label: "Final Stock",
+        noLock: data.noLock?.finalStock ?? data.noLock?.summary?.finalStock ?? null,
+        withLock: data.withLock?.finalStock ?? data.withLock?.summary?.finalStock ?? null,
+        verdict: "Final stock should be zero or positive."
+      }
+    ],
+    raw: data
   };
 }

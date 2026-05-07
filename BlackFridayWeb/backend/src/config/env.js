@@ -1,3 +1,4 @@
+const os = require("node:os");
 const path = require("node:path");
 
 const dotenv = require("dotenv");
@@ -19,13 +20,24 @@ function loadEnvironment() {
       NODE_ENV: str({ choices: allowedNodeEnvs, default: "development" }),
       HOST: str({ default: "0.0.0.0" }),
       PORT: port({ default: 4000 }),
-      SERVER_ID: str({ default: `server-${process.env.PORT || 4000}` }),
+      SERVER_ID: str({
+        default:
+          process.env.SERVER_INSTANCE_ID ||
+          `${os.hostname()}-${process.pid}-${process.env.PORT || 4000}`
+      }),
+      SERVER_INSTANCE_ID: str({
+        default:
+          process.env.SERVER_ID ||
+          `${os.hostname()}-${process.pid}-${process.env.PORT || 4000}`
+      }),
       DB_CLIENT: str({ choices: allowedDatabaseClients, default: "sqlite3" }),
       DB_URL: str({ default: "./data/blackfridayweb.sqlite" }),
       DB_POOL_MIN: num({ default: 1 }),
       DB_POOL_MAX: num({ default: 10 }),
       DB_BUSY_TIMEOUT_MS: num({ default: 5000 }),
-      NO_LOCK_PURCHASE_DELAY_MS: num({ default: 100 }),
+      NO_LOCK_PURCHASE_DELAY_MS: num({ default: 0 }),
+      NO_LOCK_PURCHASE_DELAY_MIN_MS: num({ default: 20 }),
+      NO_LOCK_PURCHASE_DELAY_MAX_MS: num({ default: 200 }),
       REDIS_URL: url({ default: "redis://localhost:6379/0" }),
       LOCK_TTL_MS: num({ default: 10000 }),
       LOCK_RETRY_INTERVAL_MS: num({ default: 50 }),

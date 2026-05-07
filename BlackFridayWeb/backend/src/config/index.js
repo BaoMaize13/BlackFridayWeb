@@ -36,8 +36,8 @@ const appConfig = Object.freeze({
 
 const serverConfig = Object.freeze({
   host: env.HOST,
-  port: env.PORT,
-  id: env.SERVER_ID
+  id: env.SERVER_INSTANCE_ID || env.SERVER_ID,
+  port: env.PORT
 });
 
 const logConfig = Object.freeze({
@@ -81,7 +81,9 @@ const authConfig = Object.freeze({
 });
 
 const purchaseConfig = Object.freeze({
-  noLockDelayMs: env.NO_LOCK_PURCHASE_DELAY_MS
+  noLockDelayMaxMs: env.NO_LOCK_PURCHASE_DELAY_MAX_MS,
+  noLockDelayMinMs: env.NO_LOCK_PURCHASE_DELAY_MIN_MS,
+  noLockFixedDelayMs: env.NO_LOCK_PURCHASE_DELAY_MS
 });
 
 module.exports = Object.freeze({

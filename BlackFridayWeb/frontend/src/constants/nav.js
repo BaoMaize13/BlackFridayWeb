@@ -25,6 +25,10 @@ export const NAV_GROUPS = [
   },
   {
     label: "Giám sát",
-    items: [{ key: "logs", label: "Nhật ký mua hàng", icon: "logs", to: ROUTES.logs }]
+    items: [
+      { key: "lockMonitor", label: "Trạng thái lock", icon: "lock-keyhole", to: ROUTES.lockMonitor },
+      { key: "logs", label: "Nhật ký mua hàng", icon: "logs", to: ROUTES.logs },
+      { key: "testReport", label: "Báo cáo test", icon: "file-bar-chart-2", to: ROUTES.testReport }
+    ]
   }
 ];

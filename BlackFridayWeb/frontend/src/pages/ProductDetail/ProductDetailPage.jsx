@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowRight, Clock3, Package, ShieldCheck, Wallet } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import EmptyState from "../../components/feedback/EmptyState";
 import ErrorState from "../../components/feedback/ErrorState";
@@ -11,9 +11,11 @@ import StatusBadge from "../../components/ui/StatusBadge";
 import Button from "../../components/ui/Button";
 import { ROUTES } from "../../constants/routes";
 import { useApi } from "../../hooks/useApi";
+import { useToast } from "../../hooks/useToast";
 import { listLogs } from "../../services/domains/logService";
 import { listOrders } from "../../services/domains/orderService";
-import { getProductById } from "../../services/domains/productService";
+import { getProductById, resetProductStock } from "../../services/domains/productService";
+import { submitPurchaseNoLock, submitPurchaseWithLock } from "../../services/domains/purchaseService";
 import { formatCurrency, formatNumber, formatShortDateTime, safeText } from "../../utils/formatters";
 
 async function loadProductContext(id) {
@@ -36,6 +38,8 @@ async function loadProductContext(id) {
 function ProductDetailPage() {
   const { id } = useParams();
   const query = useApi(() => loadProductContext(id));
+  const { showToast } = useToast();
+  const [actionBusy, setActionBusy] = useState("");
 
   useEffect(() => {
     query.execute().catch(() => null);
@@ -73,6 +77,26 @@ function ProductDetailPage() {
     .sort((left, right) => new Date(right.createdAt ?? right.timestamp ?? 0) - new Date(left.createdAt ?? left.timestamp ?? 0))
     .slice(0, 6);
 
+  const runAction = async (key, action, successMessage) => {
+    setActionBusy(key);
+    try {
+      await action();
+      showToast({
+        tone: "success",
+        title: successMessage
+      });
+      await query.execute();
+    } catch (error) {
+      showToast({
+        tone: "danger",
+        title: "Action failed",
+        description: error.message
+      });
+    } finally {
+      setActionBusy("");
+    }
+  };
+
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <PageHeader
@@ -106,6 +130,32 @@ function ProductDetailPage() {
             <StatusBadge status={(product.stock ?? 0) > 0 ? "ACTIVE" : "OFFLINE"} label={(product.stock ?? 0) > 0 ? "In Stock" : "Out of Stock"} />
             <StatusBadge status={orders.length ? "ACTIVE" : "IDLE"} label={`${orders.length} Orders`} />
             <StatusBadge status={logs.length ? "ACTIVE" : "IDLE"} label={`${logs.length} Logs`} />
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            {[1, 5, 10].map((stock) => (
+              <Button
+                key={stock}
+                tone="secondary"
+                disabled={Boolean(actionBusy)}
+                onClick={() => runAction(`reset-${stock}`, () => resetProductStock(product.id, stock), `Stock reset to ${stock}`)}
+              >
+                {actionBusy === `reset-${stock}` ? "Resetting" : `Reset ${stock}`}
+              </Button>
+            ))}
+            <Button
+              tone="danger"
+              disabled={Boolean(actionBusy)}
+              onClick={() => runAction("no-lock", () => submitPurchaseNoLock({ productId: product.id, quantity: 1 }), "No-lock purchase sent")}
+            >
+              {actionBusy === "no-lock" ? "Sending" : "Test No-Lock"}
+            </Button>
+            <Button
+              tone="success"
+              disabled={Boolean(actionBusy)}
+              onClick={() => runAction("with-lock", () => submitPurchaseWithLock({ productId: product.id, quantity: 1 }), "With-lock purchase sent")}
+            >
+              {actionBusy === "with-lock" ? "Sending" : "Test With-Lock"}
+            </Button>
           </div>
         </div>
       </SectionCard>

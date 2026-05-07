@@ -1,5 +1,6 @@
 import { Database, FileBarChart2, Package, ScrollText, Server, ShieldCheck } from "lucide-react";
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 
 import BarChart from "../../components/charts/BarChart";
 import EmptyState from "../../components/feedback/EmptyState";
@@ -8,6 +9,8 @@ import PageSkeleton from "../../components/feedback/PageSkeleton";
 import { SectionCard, StatCard } from "../../components/ui/Card";
 import PageHeader from "../../components/ui/PageHeader";
 import StatusBadge from "../../components/ui/StatusBadge";
+import Button from "../../components/ui/Button";
+import { ROUTES } from "../../constants/routes";
 import { useApi } from "../../hooks/useApi";
 import { listLogs } from "../../services/domains/logService";
 import { listOrders } from "../../services/domains/orderService";
@@ -139,10 +142,20 @@ function DashboardPage() {
 
       <div className="stat-grid">
         <StatCard label="Backend" value={safeText(data.health?.status, "Tạm thời chưa khả dụng")} icon={<Server size={16} />} hint={safeText(data.health?.environment, "Chưa có metadata health")} />
-        <StatCard label="Catalog" value={data.stats.productCount} icon={<Package size={16} />} hint="Products returned by real endpoints" />
-        <StatCard label="Order Success" value={formatPercent(data.stats.successRate)} icon={<ShieldCheck size={16} />} hint={`${data.orders.length} total orders`} />
-        <StatCard label="Signals" value={data.stats.signalCount} icon={<ScrollText size={16} />} hint="Failed orders and error-level logs" />
+        <StatCard label="Products" value={data.stats.productCount} icon={<Package size={16} />} hint="Products returned by real endpoints" />
+        <StatCard label="Total Purchases" value={data.statsSnapshot?.totalOrders ?? data.orders.length} icon={<ShieldCheck size={16} />} hint={formatPercent(data.stats.successRate)} />
+        <StatCard label="Oversell Signals" value={data.metrics?.consistencyCheck?.oversellDetected ? 1 : 0} icon={<ScrollText size={16} />} hint="From latest metrics endpoint" />
       </div>
+
+      <SectionCard title="Quick Actions" description="Run the exact demo flows from real backend APIs.">
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <Link to={ROUTES.noLockSimulation}><Button tone="danger">Run No-Lock Simulation</Button></Link>
+          <Link to={ROUTES.withLockSimulation}><Button tone="success">Run With-Lock Simulation</Button></Link>
+          <Link to={ROUTES.compareSimulation}><Button>Compare No-Lock vs With-Lock</Button></Link>
+          <Link to={ROUTES.testReport}><Button tone="secondary">View Test Report</Button></Link>
+          <Link to={ROUTES.lockMonitor}><Button tone="ghost">Current Lock Status</Button></Link>
+        </div>
+      </SectionCard>
 
       <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "2fr 1fr" }}>
         <SectionCard

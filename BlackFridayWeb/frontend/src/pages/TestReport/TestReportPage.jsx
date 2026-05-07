@@ -225,6 +225,15 @@ function TestReportPage() {
                 description={detailQuery.error}
               />
             ) : null}
+            <Button
+              tone="secondary"
+              onClick={() => {
+                const summaryText = typeof detail.summary === "string" ? detail.summary : JSON.stringify(detail.summary ?? detail.raw, null, 2);
+                navigator.clipboard?.writeText(summaryText).catch(() => null);
+              }}
+            >
+              Copy Summary
+            </Button>
           </div>
         ) : null}
       </Drawer>

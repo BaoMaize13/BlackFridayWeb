@@ -7,7 +7,7 @@ const { validatePurchaseNoLockBody, validatePurchaseWithLockBody } = require("..
 function assertValidationError(executeValidation, expectedField) {
   assert.throws(executeValidation, (error) => {
     assert.equal(error.errorCode, ERROR_CODES.VALIDATION_ERROR);
-    assert.equal(error.statusCode, HTTP_STATUS.UNPROCESSABLE_ENTITY);
+    assert.equal(error.statusCode, HTTP_STATUS.BAD_REQUEST);
     assert.equal(Array.isArray(error.details), true);
     assert.equal(
       error.details.some((detail) => detail.field === expectedField),
@@ -26,6 +26,7 @@ test("validatePurchaseNoLockBody returns normalized payload for valid input", ()
   });
 
   assert.deepEqual(payload, {
+    artificialDelayMs: undefined,
     productId: 12,
     quantity: 2,
     requestId: "req-001",
@@ -45,28 +46,24 @@ test("validatePurchaseNoLockBody rejects missing productId", () => {
   );
 });
 
-test("validatePurchaseNoLockBody rejects missing userId", () => {
-  assertValidationError(
-    () =>
-      validatePurchaseNoLockBody({
-        productId: 1,
-        quantity: 1,
-        requestId: "req-003"
-      }),
-    "userId"
-  );
+test("validatePurchaseNoLockBody defaults missing userId for demo requests", () => {
+  const payload = validatePurchaseNoLockBody({
+    productId: 1,
+    quantity: 1,
+    requestId: "req-003"
+  });
+
+  assert.equal(payload.userId, "demo-user");
 });
 
-test("validatePurchaseNoLockBody rejects missing requestId", () => {
-  assertValidationError(
-    () =>
-      validatePurchaseNoLockBody({
-        productId: 1,
-        quantity: 1,
-        userId: "user-003"
-      }),
-    "requestId"
-  );
+test("validatePurchaseNoLockBody allows missing requestId", () => {
+  const payload = validatePurchaseNoLockBody({
+    productId: 1,
+    quantity: 1,
+    userId: "user-003"
+  });
+
+  assert.equal(payload.requestId, undefined);
 });
 
 test("validatePurchaseNoLockBody rejects quantity less than or equal to zero", () => {
@@ -95,13 +92,13 @@ test("validatePurchaseNoLockBody rejects non-integer quantity", () => {
   );
 });
 
-test("validatePurchaseWithLockBody uses the same validation rules as no-lock", () => {
+test("validatePurchaseWithLockBody rejects invalid optional requestId", () => {
   assertValidationError(
     () =>
       validatePurchaseWithLockBody({
         productId: 1,
         quantity: 1,
-        requestId: "",
+        requestId: 123,
         userId: "user-006"
       }),
     "requestId"

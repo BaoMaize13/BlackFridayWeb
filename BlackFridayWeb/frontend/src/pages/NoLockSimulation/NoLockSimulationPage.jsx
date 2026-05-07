@@ -19,22 +19,24 @@ import { formatDurationMs, formatNumber, formatShortDateTime } from "../../utils
 
 const defaultConfig = {
   productId: "",
-  threads: "10",
+  concurrency: "20",
   quantity: "1",
-  totalRequests: "50",
-  initialStock: ""
+  totalRequests: "20",
+  initialStock: "1",
+  artificialDelayMs: "150"
 };
 
 function buildPayload(config) {
   return {
     product_id: config.productId || undefined,
     productId: config.productId || undefined,
-    threads: Number(config.threads) || 10,
+    concurrency: Number(config.concurrency) || 20,
     quantity: Number(config.quantity) || 1,
-    total_requests: Number(config.totalRequests) || 50,
-    totalRequests: Number(config.totalRequests) || 50,
+    total_requests: Number(config.totalRequests) || 20,
+    totalRequests: Number(config.totalRequests) || 20,
     initial_stock: config.initialStock ? Number(config.initialStock) : undefined,
-    initialStock: config.initialStock ? Number(config.initialStock) : undefined
+    initialStock: config.initialStock ? Number(config.initialStock) : undefined,
+    artificialDelayMs: config.artificialDelayMs ? Number(config.artificialDelayMs) : undefined
   };
 }
 
@@ -123,8 +125,8 @@ function NoLockSimulationPage() {
               />
             </Field>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
-              <Field label="Threads">
-                <Input type="number" min="1" value={form.threads} onChange={handleChange("threads")} disabled={query.loading} />
+              <Field label="Concurrency">
+                <Input type="number" min="1" value={form.concurrency} onChange={handleChange("concurrency")} disabled={query.loading} />
               </Field>
               <Field label="Quantity / Request">
                 <Input type="number" min="1" value={form.quantity} onChange={handleChange("quantity")} disabled={query.loading} />
@@ -135,9 +137,12 @@ function NoLockSimulationPage() {
             </div>
             <Field
               label="Initial Stock (Optional)"
-              hint="Send only when the backend compare/simulation flow supports explicit stock reset or override."
+              hint="Backend resets this product before running the race-condition demo."
             >
               <Input type="number" min="0" value={form.initialStock} onChange={handleChange("initialStock")} disabled={query.loading} />
+            </Field>
+            <Field label="Artificial Delay (ms)" hint="Delay between stale stock read and write in no-lock mode.">
+              <Input type="number" min="0" value={form.artificialDelayMs} onChange={handleChange("artificialDelayMs")} disabled={query.loading} />
             </Field>
             <InlineError message={formError || query.error} />
             <Button type="submit" tone="danger" disabled={query.loading}>
@@ -228,8 +233,8 @@ function NoLockSimulationPage() {
               <div style={{ display: "grid", gap: "0.9rem" }}>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
                   <StatusBadge
-                    status={summary?.oversellDetected ? "OVERSOLD" : "IDLE"}
-                    label={summary?.oversellDetected ? "Oversell detected" : "No oversell flag"}
+                    status={summary?.raceConditionConfirmed ? "OVERSOLD" : "IDLE"}
+                    label={summary?.raceConditionConfirmed ? "Race condition confirmed" : "No race flag"}
                   />
                   <StatusBadge
                     status={summary?.consistent === false ? "FAILED" : "SUCCESS"}

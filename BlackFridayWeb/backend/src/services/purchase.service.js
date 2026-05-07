@@ -5,6 +5,7 @@ const {
   PURCHASE_LOG_RESULTS,
   PURCHASE_RESULTS
 } = require("../constants/domain");
+const { randomUUID } = require("node:crypto");
 const { purchaseConfig, serverConfig } = require("../config");
 const { ERROR_CODES, HTTP_STATUS } = require("../constants/system");
 const { withTransaction } = require("../database/client");
@@ -81,6 +82,29 @@ function createLockServiceUnavailableError(productId, lockKey) {
   });
 }
 
+function resolveNoLockDelayMs(payload = {}) {
+  if (Number.isInteger(payload.artificialDelayMs) && payload.artificialDelayMs >= 0) {
+    return payload.artificialDelayMs;
+  }
+
+  if (Number.isInteger(purchaseConfig.noLockFixedDelayMs) && purchaseConfig.noLockFixedDelayMs > 0) {
+    return purchaseConfig.noLockFixedDelayMs;
+  }
+
+  const minDelayMs = Math.max(0, Number(purchaseConfig.noLockDelayMinMs) || 20);
+  const maxDelayMs = Math.max(minDelayMs, Number(purchaseConfig.noLockDelayMaxMs) || 200);
+
+  return Math.floor(Math.random() * (maxDelayMs - minDelayMs + 1)) + minDelayMs;
+}
+
+function normalizePurchasePayload(payload = {}, context = {}) {
+  return {
+    ...payload,
+    requestId: payload.requestId || context.requestId || randomUUID(),
+    userId: payload.userId || "demo-user"
+  };
+}
+
 function isDuplicateRequestDatabaseError(error) {
   const message = String(error?.message || "");
 
@@ -124,10 +148,19 @@ class PurchaseService {
   }
 
   async purchaseWithLock(payload, context = {}) {
+    payload = normalizePurchasePayload(payload, context);
     const logger = context.logger;
-    const requestId = payload.requestId || context.requestId;
+    const requestId = payload.requestId;
     const serverId = context.serverId || serverConfig.id;
     const lockKey = buildProductLockKey(payload.productId);
+    const lockContext = {
+      acquired: false,
+      key: lockKey,
+      retryCount: 0,
+      releaseStatus: null,
+      token: null,
+      waitMs: 0
+    };
 
     logger?.info(
       {
@@ -197,7 +230,11 @@ class PurchaseService {
                 isDuplicate: true,
                 lock: {
                   acquired: true,
-                  key: lockKey
+                  key: lockKey,
+                  retryCount: lockContext.retryCount,
+                  releaseStatus: lockContext.releaseStatus,
+                  token: lockContext.token,
+                  waitMs: lockContext.waitMs
                 },
                 order: formatOrderForResponse(existingOrder),
                 requestId,
@@ -404,7 +441,11 @@ class PurchaseService {
               isDuplicate: false,
               lock: {
                 acquired: true,
-                key: lockKey
+                key: lockKey,
+                retryCount: lockContext.retryCount,
+                releaseStatus: lockContext.releaseStatus,
+                token: lockContext.token,
+                waitMs: lockContext.waitMs
               },
               order: formatOrderForResponse(order),
               requestId,
@@ -424,9 +465,25 @@ class PurchaseService {
             userId: payload.userId
           },
           requestId,
-          serverId
+          serverId,
+          onLockAcquired(lock) {
+            lockContext.acquired = true;
+            lockContext.retryCount = Math.max(0, (lock.attempts || 1) - 1);
+            lockContext.token = lock.token;
+            lockContext.waitMs = lock.elapsedMs || 0;
+          },
+          onLockReleased(releaseResult) {
+            lockContext.releaseStatus = releaseResult?.released ? "RELEASED" : "SKIPPED";
+          }
         }
       );
+
+      if (lockResult?.lock) {
+        lockResult.lock.retryCount = lockContext.retryCount;
+        lockResult.lock.releaseStatus = lockContext.releaseStatus;
+        lockResult.lock.token = lockContext.token;
+        lockResult.lock.waitMs = lockContext.waitMs;
+      }
 
       if (lockResult?.failure) {
         throw new AppError(lockResult.failure);
@@ -476,7 +533,8 @@ class PurchaseService {
   }
 
   async purchaseWithoutLock(payload, context = {}) {
-    const delayMs = purchaseConfig.noLockDelayMs;
+    payload = normalizePurchasePayload(payload, context);
+    const delayMs = resolveNoLockDelayMs(payload);
     const logger = context.logger;
     const serverId = context.serverId || serverConfig.id;
 
@@ -631,6 +689,9 @@ class PurchaseService {
       const error = createOutOfStockError(product.id, payload.quantity);
       error.details = {
         orderId: failedOrder.id,
+        productId: product.id,
+        requestedQuantity: payload.quantity,
+        stockAfter: stockBefore,
         stockBefore
       };
       throw error;

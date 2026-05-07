@@ -24,9 +24,10 @@ import { formatDurationMs, formatNumber, formatShortDateTime } from "../../utils
 
 const defaultConfig = {
   productId: "",
-  threads: "10",
+  concurrency: "20",
   quantity: "1",
-  totalRequests: "50",
+  totalRequests: "20",
+  initialStock: "1",
   lockType: "pessimistic"
 };
 
@@ -34,10 +35,11 @@ function buildPayload(config) {
   return {
     product_id: config.productId || undefined,
     productId: config.productId || undefined,
-    threads: Number(config.threads) || 10,
+    concurrency: Number(config.concurrency) || 20,
     quantity: Number(config.quantity) || 1,
-    total_requests: Number(config.totalRequests) || 50,
-    totalRequests: Number(config.totalRequests) || 50,
+    total_requests: Number(config.totalRequests) || 20,
+    totalRequests: Number(config.totalRequests) || 20,
+    initialStock: Number(config.initialStock) || 1,
     lock_type: config.lockType || "pessimistic",
     lockType: config.lockType || "pessimistic"
   };
@@ -253,14 +255,17 @@ function CompareSimulationPage() {
             <Field label="Product ID">
               <Input value={form.productId} onChange={handleChange("productId")} placeholder="1" disabled={query.loading} />
             </Field>
-            <Field label="Threads">
-              <Input type="number" min="1" value={form.threads} onChange={handleChange("threads")} disabled={query.loading} />
+            <Field label="Concurrency">
+              <Input type="number" min="1" value={form.concurrency} onChange={handleChange("concurrency")} disabled={query.loading} />
             </Field>
             <Field label="Quantity / Request">
               <Input type="number" min="1" value={form.quantity} onChange={handleChange("quantity")} disabled={query.loading} />
             </Field>
             <Field label="Total Requests">
               <Input type="number" min="1" value={form.totalRequests} onChange={handleChange("totalRequests")} disabled={query.loading} />
+            </Field>
+            <Field label="Initial Stock">
+              <Input type="number" min="0" value={form.initialStock} onChange={handleChange("initialStock")} disabled={query.loading} />
             </Field>
             <Field label="Lock Strategy">
               <Select value={form.lockType} onChange={handleChange("lockType")} disabled={query.loading}>
@@ -364,10 +369,10 @@ function CompareSimulationPage() {
                   Success: {formatNumber(result.withLock?.summary.successCount ?? 0)}
                 </div>
                 <div style={{ color: "var(--color-text-secondary)" }}>
-                  Queue depth: {formatNumber(result.withLock?.summary.waitingQueue ?? 0)}
+                  Failed: {formatNumber(result.withLock?.summary.failedCount ?? 0)}
                 </div>
                 <div style={{ color: "var(--color-text-secondary)" }}>
-                  Contentions: {formatNumber(result.withLock?.summary.contentionCount ?? 0)}
+                  Final stock: {formatNumber(result.withLock?.summary.finalStock)}
                 </div>
               </div>
             </SectionCard>
